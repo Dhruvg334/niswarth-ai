@@ -6,6 +6,10 @@ Niswarth AI is a frontend product prototype designed for NGOs, foundations, and 
 
 The word **Niswarth** means **selfless**, reflecting the spirit of people who devote themselves to social impact work.
 
+## Live Deployment
+
+[Niswarth AI Live Project](https://niswarth-ai.vercel.app/)
+
 ---
 
 ## Project Overview
@@ -137,7 +141,7 @@ niswarth-ai/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/niswarth-ai.git
+git clone https://github.com/Dhruvg334/niswarth-ai.git
 ```
 
 ### 2. Go inside the project folder
@@ -292,8 +296,8 @@ Through this project, I practiced:
 
 ## Project Status
 
-**Version:** Stage 2 frontend prototype 
-**Next planned step:** Backend and real AI workflow integration
+**Current version:** Frontend product prototype  
+**Next planned step:** Backend persistence and real AI workflow integration
 
 ---
 
