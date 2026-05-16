@@ -1,21 +1,64 @@
 import { useState } from 'react'
-import { Sparkles, Copy, CheckCircle2 } from 'lucide-react'
+import { Sparkles, Copy, CheckCircle2, AlertCircle } from 'lucide-react'
 import Button from '../common/Button.jsx'
 import { generateImpactReport } from '../../utils/generateImpactReport.js'
+import { markReportReviewed, saveImpactReportDraft } from '../../services/reportService.js'
 
-export default function ImpactReportGenerator({ campaign }) {
+export default function ImpactReportGenerator({ campaign, onReportSaved }) {
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [report, setReport] = useState(null)
+  const [savedReportId, setSavedReportId] = useState(null)
   const [approved, setApproved] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
-  function handleGenerate() {
+  async function handleGenerate() {
     setApproved(false)
     setLoading(true)
+    setSaving(false)
     setReport(null)
-    window.setTimeout(() => {
-      setReport(generateImpactReport(campaign))
+    setSavedReportId(null)
+    setErrorMessage('')
+
+    window.setTimeout(async () => {
+      const generatedReport = generateImpactReport(campaign)
+      setReport(generatedReport)
       setLoading(false)
-    }, 850)
+
+      if (campaign.dbBacked) {
+        setSaving(true)
+        const { report: savedReport, error } = await saveImpactReportDraft({
+          campaignId: campaign.id,
+          draftText: generatedReport.summary,
+        })
+        setSaving(false)
+
+        if (error) {
+          setErrorMessage('Draft generated locally, but saving to the database failed. Check Supabase table policies and environment variables.')
+          return
+        }
+
+        if (savedReport?.id) {
+          setSavedReportId(savedReport.id)
+        }
+      }
+    }, 700)
+  }
+
+  async function handleMarkReviewed() {
+    setErrorMessage('')
+    if (!savedReportId) {
+      setApproved(true)
+      return
+    }
+
+    const { error } = await markReportReviewed(savedReportId)
+    if (error) {
+      setErrorMessage('The report was generated, but the review status could not be saved. Check Supabase update policy for impact_reports.')
+      return
+    }
+
+    setApproved(true)
   }
 
   async function handleCopy() {
@@ -35,12 +78,20 @@ export default function ImpactReportGenerator({ campaign }) {
 
       <div className="mt-7 rounded-[1.5rem] border border-green-100 bg-green-50/60 p-6">
         {loading && <p className="text-sm font-semibold text-forest">Reading field updates and preparing a human-review draft...</p>}
+        {saving && <p className="mt-3 text-xs font-bold text-forest">Saving draft to the backend workflow record...</p>}
         {!loading && !report && <p className="max-w-xl text-sm leading-7 text-slate-600">Click “Generate Draft” to turn field updates into a concise impact summary for human review.</p>}
+        {errorMessage && (
+          <div className="mt-4 flex gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <AlertCircle className="mt-0.5 shrink-0" size={18} />
+            <p>{errorMessage}</p>
+          </div>
+        )}
         {report && (
           <div>
             <div className="mb-5 flex flex-wrap items-center gap-3">
               <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-forest">Draft readiness: {report.confidence}%</span>
               <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-800">Human review required</span>
+              {campaign.dbBacked && savedReportId && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">Saved to backend</span>}
               {approved && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800"><CheckCircle2 size={14} /> Reviewed</span>}
             </div>
             <h3 className="display-font text-xl font-extrabold text-ink">{report.title}</h3>
@@ -52,7 +103,7 @@ export default function ImpactReportGenerator({ campaign }) {
             <p className="mt-6 rounded-2xl bg-white p-4 text-xs leading-5 text-slate-500">{report.disclaimer}</p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Button variant="secondary" onClick={handleCopy}><Copy className="mr-2" size={18} /> Copy Draft</Button>
-              <Button onClick={() => setApproved(true)}>Mark Reviewed</Button>
+              <Button onClick={handleMarkReviewed}>Mark Reviewed</Button>
             </div>
           </div>
         )}
