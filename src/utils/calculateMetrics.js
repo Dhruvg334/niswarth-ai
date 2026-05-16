@@ -39,3 +39,19 @@ export function calculateGlobalMetrics(campaigns = []) {
     }
   )
 }
+
+
+export function calculateQualityMetrics(campaigns = []) {
+  const campaignCount = campaigns.length
+  const fieldUpdates = campaigns.reduce((total, campaign) => total + campaign.metrics.fieldUpdates, 0)
+  const reportsGenerated = campaigns.reduce((total, campaign) => total + campaign.metrics.reportsGenerated, 0)
+  const reportsApproved = campaigns.reduce((total, campaign) => total + campaign.metrics.reportsApproved, 0)
+  const pendingApprovals = campaigns.reduce((total, campaign) => total + campaign.metrics.pendingApprovals, 0)
+
+  return {
+    updatesPerCampaign: campaignCount ? (fieldUpdates / campaignCount).toFixed(1) : '0.0',
+    approvalRate: reportsGenerated ? `${Math.round((reportsApproved / reportsGenerated) * 100)}%` : '0%',
+    reviewQueue: pendingApprovals,
+    evidenceReadyCampaigns: campaigns.filter((campaign) => campaign.metrics.fieldUpdates > 0).length,
+  }
+}

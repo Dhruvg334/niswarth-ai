@@ -132,3 +132,50 @@ export async function getCampaignsWithRelations() {
     }
   }
 }
+
+
+export async function createCampaign({ title, type, location, status = 'planning', goal = '', startDate = '', endDate = '' }) {
+  if (!isSupabaseConfigured) {
+    return { campaign: null, error: new Error('Supabase is not configured.'), skipped: true }
+  }
+
+  const payload = {
+    title: title.trim(),
+    type,
+    location: location.trim(),
+    status,
+    goal: goal.trim() || null,
+    start_date: startDate || null,
+    end_date: endDate || null,
+  }
+
+  const { data, error } = await supabase
+    .from('campaigns')
+    .insert(payload)
+    .select('*')
+    .single()
+
+  return { campaign: data, error, skipped: false }
+}
+
+export async function createFieldUpdate({ campaignId, updateText, location = '', submittedBy = '', evidenceType = 'text' }) {
+  if (!isSupabaseConfigured) {
+    return { fieldUpdate: null, error: new Error('Supabase is not configured.'), skipped: true }
+  }
+
+  const payload = {
+    campaign_id: campaignId,
+    update_text: updateText.trim(),
+    location: location.trim() || null,
+    submitted_by: submittedBy.trim() || null,
+    evidence_type: evidenceType,
+  }
+
+  const { data, error } = await supabase
+    .from('field_updates')
+    .insert(payload)
+    .select('*')
+    .single()
+
+  return { fieldUpdate: data, error, skipped: false }
+}

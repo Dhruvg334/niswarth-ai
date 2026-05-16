@@ -52,10 +52,23 @@ It includes:
 - Volunteer details
 - Field updates
 - Workflow metrics
+- Workflow quality indicators
 - AI impact report draft area
 - Human review and approval status
 
-### Campaign-Based Demo Data
+### Backend-Connected Campaign Workflow
+
+The dashboard connects with Supabase for campaign, field update, and report records. It also keeps a local fallback path so the interface remains viewable if environment variables are not configured.
+
+The workflow supports:
+
+- Creating campaign records
+- Adding field updates to selected campaigns
+- Saving AI-assisted report drafts
+- Marking reports as human-reviewed
+- Refreshing backend records from the dashboard
+
+### Campaign Types
 
 The dashboard includes realistic campaign types:
 
@@ -101,6 +114,7 @@ Fields include:
 - React
 - Vite
 - Tailwind CSS
+- Supabase
 - React Router
 - Lucide React
 - JavaScript
@@ -120,9 +134,13 @@ niswarth-ai/
 │   │   ├── layout/
 │   │   ├── common/
 │   │   ├── landing/
+│   │   ├── forms/
 │   │   └── dashboard/
 │   ├── data/
+│   ├── database/
+│   ├── lib/
 │   ├── pages/
+│   ├── services/
 │   ├── utils/
 │   ├── App.jsx
 │   ├── main.jsx
@@ -200,9 +218,11 @@ This project demonstrates:
 - Multi-page frontend routing
 - Responsive UI design
 - Dashboard-style interface design
-- Mock data-driven rendering
+- Supabase-backed data workflow
+- Service-layer based backend access
 - Simulated AI workflow
 - Human-in-the-loop product thinking
+- Reliability, observation, and workflow quality metrics
 - NGO-focused user experience design
 - Clean frontend project documentation
 

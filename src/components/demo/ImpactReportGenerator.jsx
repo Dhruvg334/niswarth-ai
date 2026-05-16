@@ -13,6 +13,11 @@ export default function ImpactReportGenerator({ campaign, onReportSaved }) {
   const [errorMessage, setErrorMessage] = useState('')
 
   async function handleGenerate() {
+    if (!campaign?.updates?.length) {
+      setErrorMessage('Add at least one field update before generating an impact report. Reports should be grounded in field evidence.')
+      return
+    }
+
     setApproved(false)
     setLoading(true)
     setSaving(false)
@@ -73,13 +78,13 @@ export default function ImpactReportGenerator({ campaign, onReportSaved }) {
           <h2 className="display-font text-3xl font-extrabold text-ink">AI impact report draft</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">AI-assisted draft generated from selected campaign updates.</p>
         </div>
-        <Button onClick={handleGenerate}><Sparkles className="mr-2" size={18} /> Generate Draft</Button>
+        <Button onClick={handleGenerate} disabled={!campaign?.updates?.length || loading || saving} className="disabled:cursor-not-allowed disabled:opacity-60"><Sparkles className="mr-2" size={18} /> Generate Draft</Button>
       </div>
 
       <div className="mt-7 rounded-[1.5rem] border border-green-100 bg-green-50/60 p-6">
         {loading && <p className="text-sm font-semibold text-forest">Reading field updates and preparing a human-review draft...</p>}
         {saving && <p className="mt-3 text-xs font-bold text-forest">Saving draft to the backend workflow record...</p>}
-        {!loading && !report && <p className="max-w-xl text-sm leading-7 text-slate-600">Click “Generate Draft” to turn field updates into a concise impact summary for human review.</p>}
+        {!loading && !report && <p className="max-w-xl text-sm leading-7 text-slate-600">{campaign?.updates?.length ? "Click “Generate Draft” to turn field updates into a concise impact summary for human review." : "Add field updates before generating an impact report. This keeps report drafts evidence-based."}</p>}
         {errorMessage && (
           <div className="mt-4 flex gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <AlertCircle className="mt-0.5 shrink-0" size={18} />
