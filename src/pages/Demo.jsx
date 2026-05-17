@@ -6,6 +6,7 @@ import Button from '../components/common/Button.jsx'
 import SlideOver from '../components/common/SlideOver.jsx'
 import CampaignSelector from '../components/demo/CampaignSelector.jsx'
 import ImpactReportGenerator from '../components/demo/ImpactReportGenerator.jsx'
+import ReportsHistory from '../components/demo/ReportsHistory.jsx'
 import CreateCampaignPanel from '../components/forms/CreateCampaignPanel.jsx'
 import AddFieldUpdatePanel from '../components/forms/AddFieldUpdatePanel.jsx'
 import { getCampaignsWithRelations } from '../services/campaignService.js'
@@ -119,11 +120,13 @@ export default function Demo() {
               <CampaignSelector campaigns={campaigns} selectedId={selectedId} onSelect={setSelectedId} />
             </div>
 
-            <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-6">
+            <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
               <MetricCard label="Active Campaigns" value={globalMetrics.activeCampaigns} helper="Backend records" />
               <MetricCard label="Volunteers Assigned" value={globalMetrics.volunteersAssigned} helper="Linked to campaigns" />
               <MetricCard label="Field Updates" value={globalMetrics.fieldUpdates} helper="Field records" />
               <MetricCard label="Reports Generated" value={globalMetrics.reportsGenerated} helper="Saved drafts" />
+              <MetricCard label="Under Review" value={globalMetrics.reportsUnderReview} helper="Awaiting decision" />
+              <MetricCard label="Needs Revision" value={globalMetrics.reportsNeedingRevision} helper="Quality control" />
               <MetricCard label="Reports Approved" value={globalMetrics.reportsApproved} helper="Human reviewed" />
               <MetricCard label="Pending Reviews" value={globalMetrics.pendingApprovals} helper="Review queue" />
             </div>
@@ -139,7 +142,7 @@ export default function Demo() {
                 </div>
                 <p className="rounded-full bg-amber-50 px-4 py-2 text-xs font-extrabold text-amber-800">AI drafts remain human-reviewed</p>
               </div>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
                   <p className="text-xs font-bold text-slate-500">Updates / Campaign</p>
                   <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.updatesPerCampaign}</p>
@@ -151,6 +154,10 @@ export default function Demo() {
                 <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
                   <p className="text-xs font-bold text-slate-500">Review Queue</p>
                   <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.reviewQueue}</p>
+                </div>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
+                  <p className="text-xs font-bold text-slate-500">Needs Revision</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.needsRevision}</p>
                 </div>
                 <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
                   <p className="text-xs font-bold text-slate-500">Evidence-Ready Campaigns</p>
@@ -190,13 +197,20 @@ export default function Demo() {
               </div>
             </div>
 
-            <div className="mt-8 grid gap-8 lg:grid-cols-2">
+            <div className="mt-8">
+              <ImpactReportGenerator campaign={campaign} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
+            </div>
+
+            <div className="mt-8 grid gap-8 xl:grid-cols-2">
               <div className="premium-card rounded-[2rem] p-7">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="display-font text-3xl font-extrabold text-ink">Field updates</h2>
+                  <div>
+                    <h2 className="display-font text-3xl font-extrabold text-ink">Field updates</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">Evidence collected from volunteers and field teams for the selected campaign.</p>
+                  </div>
                   <Button variant="secondary" onClick={() => setUpdateOpen(true)}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>
                 </div>
-                <div className="mt-6 space-y-4">
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   {campaign.fieldUpdates?.length > 0 ? campaign.fieldUpdates.map((update, index) => (
                     <div key={update.id || `${update.update_text}-${index}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -211,7 +225,7 @@ export default function Demo() {
                   )}
                 </div>
               </div>
-              <ImpactReportGenerator campaign={campaign} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
+              <ReportsHistory reports={campaign.reports || []} />
             </div>
           </>
         )}
