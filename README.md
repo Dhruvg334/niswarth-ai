@@ -86,6 +86,12 @@ Users can generate an impact report draft based on selected campaign updates. Th
 
 > AI-generated drafts may contain inaccuracies. Human review is required before sharing.
 
+### Gemini 2.5 Flash Report Generation
+
+The report workflow now uses a Vercel serverless function to request report drafts from Gemini 2.5 Flash. The API key is kept server-side through the `GEMINI_API_KEY` environment variable and is not exposed to the browser.
+
+If the AI request fails or the server-side key is not configured, the interface falls back to a local structured draft generator and clearly tells the user to review the fallback draft carefully.
+
 ### Use Cases Page
 
 The Use Cases page explains how the platform can support different types of social-impact work, including:
@@ -120,6 +126,9 @@ Fields include:
 - JavaScript
 - HTML
 - CSS
+- Supabase
+- Vercel Serverless Functions
+- Gemini 2.5 Flash API
 
 ---
 
@@ -127,6 +136,8 @@ Fields include:
 
 ```text
 niswarth-ai/
+├── api/
+│   └── generate-report.js
 ├── public/
 ├── src/
 │   ├── assets/
@@ -190,6 +201,23 @@ http://localhost:5173
 
 Open it in your browser.
 
+### Environment Variables
+
+Create a `.env.local` file for local Supabase access:
+
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_publishable_key
+```
+
+For deployed AI generation, add this variable in Vercel Project Settings → Environment Variables:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+`GEMINI_API_KEY` must not be prefixed with `VITE_` because it is a server-side secret used only by the Vercel API function.
+
 ---
 
 ## Build Commands
@@ -252,7 +280,7 @@ It includes:
 - Static frontend pages
 - Interactive dashboard UI
 - Campaign switching
-- Simulated AI report generation
+- Gemini-backed AI report generation with local fallback
 - Human review UI
 - Responsive design
 
@@ -281,7 +309,7 @@ Planned improvements:
 - Save generated reports
 - Add real dashboard metrics
 - Add authentication for NGO admins
-- Integrate a real AI API for report generation
+- Add AI generation logs and evaluation metrics
 - Add report editing before approval
 
 ### Stage 4: Advanced Agentic AI System
