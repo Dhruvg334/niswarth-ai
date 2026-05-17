@@ -6,27 +6,77 @@ function cleanText(value, maxLength = 1800) {
   return value.replace(/\s+/g, ' ').trim().slice(0, maxLength)
 }
 
+function isCompleteText(text) {
+  const trimmed = cleanText(text, 5000)
+  if (!trimmed) return false
+  return /[.!?)]$/.test(trimmed)
+}
+
 function buildPrompt(campaign) {
   const title = cleanText(campaign?.title, 120) || 'NGO campaign'
   const type = cleanText(campaign?.type, 80) || 'social impact'
   const location = cleanText(campaign?.location, 120) || 'the field location'
   const status = cleanText(campaign?.status, 80) || 'active'
-  const goal = cleanText(campaign?.goal, 300) || 'Support the campaign goal using available field evidence.'
+  const goal = cleanText(campaign?.goal, 320) || 'Support the campaign goal using available field evidence.'
   const volunteers = Array.isArray(campaign?.volunteers) ? campaign.volunteers.slice(0, 10) : []
   const updates = Array.isArray(campaign?.updates) ? campaign.updates.slice(0, 12) : []
+  const metrics = campaign?.metrics || {}
 
   const volunteerLines = volunteers.length
     ? volunteers.map((volunteer, index) => `${index + 1}. ${cleanText(volunteer.name, 80)} — ${cleanText(volunteer.role, 100)}`).join('\n')
     : 'No volunteer details provided.'
 
   const updateLines = updates.map((update, index) => {
-    const updateText = cleanText(update.update_text || update.text, 500)
+    const updateText = cleanText(update.update_text || update.text, 520)
     const updateLocation = cleanText(update.location, 120) || location
     const submittedBy = cleanText(update.submitted_by, 120) || 'field team'
     return `${index + 1}. ${updateText} (Location: ${updateLocation}; Submitted by: ${submittedBy})`
   }).join('\n')
 
-  return `You are helping an NGO prepare a human-reviewed impact report draft.\n\nRules:\n- Use only the facts provided below.\n- Do not invent beneficiary counts, dates, donors, outcomes, names, locations, or impact claims.\n- If evidence is incomplete, say what is missing in a practical and respectful way.\n- Write in clear, warm, NGO-friendly language.\n- Keep the report suitable for internal review before external sharing.\n- Avoid marketing hype and exaggerated claims.\n- Do not include markdown tables.\n\nCampaign details:\nTitle: ${title}\nType: ${type}\nLocation: ${location}\nStatus: ${status}\nGoal: ${goal}\n\nVolunteers:\n${volunteerLines}\n\nField updates:\n${updateLines}\n\nWrite a concise impact report draft with:\n1. A short opening paragraph about what happened\n2. A paragraph summarizing the field evidence\n3. A paragraph explaining current progress and next steps\n4. A final note about what should be verified before sharing externally\n\nReturn only the report draft text.`
+  return `You are writing a human-reviewed NGO impact report draft for Niswarth AI.
+
+Primary objective:
+Create a complete, polished, warm, and practical impact report draft that an NGO coordinator can review and edit.
+
+Hard rules:
+- Use ONLY the evidence provided in the campaign details, volunteers, metrics, and field updates below.
+- Do NOT invent beneficiary counts, donor names, dates, outcomes, locations, quotes, impact numbers, or volunteer names.
+- If evidence is limited, state that more field evidence should be collected before external sharing.
+- Do NOT leave any sentence incomplete.
+- Do NOT end mid-thought.
+- Do NOT use markdown tables.
+- Do NOT add headings in markdown format.
+- Do NOT include placeholders.
+- Avoid hype, exaggeration, and sales language.
+- Keep the tone NGO-friendly, clear, respectful, and suitable for human review.
+
+Output format:
+Write 3 short paragraphs only, 170 to 240 words total.
+
+Paragraph 1: Campaign overview using the provided campaign title, location, status, and goal.
+Paragraph 2: Field evidence summary using the submitted updates and volunteer details if available.
+Paragraph 3: Current progress, practical next steps, and what must be verified before sharing externally.
+
+Campaign details:
+Title: ${title}
+Type: ${type}
+Location: ${location}
+Status: ${status}
+Goal: ${goal}
+
+Available metrics:
+Volunteers assigned: ${metrics.volunteersAssigned ?? volunteers.length ?? 'Not provided'}
+Field updates recorded: ${metrics.fieldUpdates ?? updates.length}
+Events completed: ${metrics.eventsCompleted ?? 'Not provided'}
+Workflow completion: ${metrics.completion ?? 'Not provided'}
+
+Volunteers:
+${volunteerLines}
+
+Field updates:
+${updateLines}
+
+Return only the completed report draft text.`
 }
 
 function buildSuggestedActions(campaign) {
@@ -42,14 +92,70 @@ function buildSuggestedActions(campaign) {
   return actions.slice(0, 4)
 }
 
+async function requestGeminiDraft({ apiKey, prompt, maxOutputTokens = 2200 }) {
+  const response = await fetch(GEMINI_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        topP: 0.8,
+        maxOutputTokens,
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
+      },
+    }),
+  })
+
+  const rawText = await response.text()
+  let payload = {}
+
+  try {
+    payload = rawText ? JSON.parse(rawText) : {}
+  } catch {
+    payload = { rawText }
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      error: payload?.error?.message || rawText || 'Gemini request failed.',
+    }
+  }
+
+  const candidate = payload?.candidates?.[0]
+  const draftText = candidate?.content?.parts?.map((part) => part.text || '').join('\n').trim() || ''
+
+  return {
+    ok: true,
+    draftText,
+    finishReason: candidate?.finishReason || 'UNKNOWN',
+    usageMetadata: payload?.usageMetadata || null,
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  const requestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
   const apiKey = process.env.GEMINI_API_KEY
+
   if (!apiKey) {
+    console.error(`[${requestId}] GEMINI_API_KEY is missing`)
     return res.status(503).json({ error: 'AI service is not configured yet.' })
   }
 
@@ -65,49 +171,62 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'At least one field update is required before generating a report.' })
     }
 
-    const prompt = buildPrompt(campaign)
-
-    const geminiResponse = await fetch(GEMINI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.35,
-          topP: 0.9,
-          maxOutputTokens: 900,
-        },
-      }),
+    console.log(`[${requestId}] Report generation started`, {
+      campaignId: campaign.id,
+      campaignType: campaign.type,
+      updateCount: updates.length,
     })
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text()
-      return res.status(502).json({ error: 'AI generation request failed.', detail: errorText.slice(0, 500) })
+    const prompt = buildPrompt(campaign)
+    let aiResult = await requestGeminiDraft({ apiKey, prompt, maxOutputTokens: 2200 })
+
+    if (aiResult.ok && (aiResult.finishReason === 'MAX_TOKENS' || !isCompleteText(aiResult.draftText))) {
+      console.warn(`[${requestId}] Gemini returned incomplete draft. Retrying with higher token budget.`, {
+        finishReason: aiResult.finishReason,
+        outputLength: aiResult.draftText.length,
+        usageMetadata: aiResult.usageMetadata,
+      })
+      aiResult = await requestGeminiDraft({
+        apiKey,
+        prompt: `${prompt}\n\nImportant: Return a complete draft. End with a complete sentence.`,
+        maxOutputTokens: 3200,
+      })
     }
 
-    const data = await geminiResponse.json()
-    const draftText = data?.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n').trim()
+    if (!aiResult.ok) {
+      console.error(`[${requestId}] Gemini request failed`, { status: aiResult.status, error: aiResult.error })
+      return res.status(502).json({ error: 'AI generation request failed.', detail: String(aiResult.error).slice(0, 500) })
+    }
 
-    if (!draftText) {
+    if (!aiResult.draftText) {
+      console.error(`[${requestId}] Gemini returned empty draft`)
       return res.status(502).json({ error: 'AI service returned an empty draft.' })
     }
 
+    if (aiResult.finishReason === 'MAX_TOKENS' || !isCompleteText(aiResult.draftText)) {
+      console.error(`[${requestId}] Gemini returned incomplete draft after retry`, {
+        finishReason: aiResult.finishReason,
+        outputLength: aiResult.draftText.length,
+        usageMetadata: aiResult.usageMetadata,
+      })
+      return res.status(502).json({ error: 'AI service returned an incomplete draft. Please try again.' })
+    }
+
+    console.log(`[${requestId}] Report generation completed`, {
+      finishReason: aiResult.finishReason,
+      outputLength: aiResult.draftText.length,
+      usageMetadata: aiResult.usageMetadata,
+    })
+
     return res.status(200).json({
       title: `${cleanText(campaign.title, 90)} Impact Draft`,
-      summary: draftText,
+      summary: aiResult.draftText,
       suggestedActions: buildSuggestedActions(campaign),
       confidence: Math.min(92, 58 + updates.length * 9),
       disclaimer: 'AI-generated drafts may contain inaccuracies; human review is required before sharing or publishing.',
     })
   } catch (error) {
+    console.error(`[${requestId}] Unexpected report generation error`, { message: error?.message })
     return res.status(500).json({ error: 'Unexpected report generation error.', detail: error?.message || 'Unknown error' })
   }
 }
