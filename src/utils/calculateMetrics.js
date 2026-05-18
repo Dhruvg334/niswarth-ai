@@ -24,20 +24,28 @@ export function calculateCampaignMetrics({ volunteers = [], updates = [], report
 }
 
 export function calculateGlobalMetrics(campaigns = []) {
-  return campaigns.reduce(
-    (totals, campaign) => ({
-      activeCampaigns: totals.activeCampaigns + (campaign.rawStatus === 'active' ? 1 : 0),
-      volunteersAssigned: totals.volunteersAssigned + campaign.metrics.volunteersAssigned,
-      fieldUpdates: totals.fieldUpdates + campaign.metrics.fieldUpdates,
-      reportsGenerated: totals.reportsGenerated + campaign.metrics.reportsGenerated,
-      reportsApproved: totals.reportsApproved + campaign.metrics.reportsApproved,
-      reportsUnderReview: totals.reportsUnderReview + (campaign.metrics.reportsUnderReview || 0),
-      reportsNeedingRevision: totals.reportsNeedingRevision + (campaign.metrics.reportsNeedingRevision || 0),
-      pendingApprovals: totals.pendingApprovals + campaign.metrics.pendingApprovals,
-    }),
+  const uniqueAssignedVolunteerIds = new Set()
+
+  const totals = campaigns.reduce(
+    (acc, campaign) => {
+      ;(campaign.volunteers || []).forEach((volunteer) => {
+        if (volunteer.id) {
+          uniqueAssignedVolunteerIds.add(volunteer.id)
+        }
+      })
+
+      return {
+        activeCampaigns: acc.activeCampaigns + (campaign.rawStatus === 'active' ? 1 : 0),
+        fieldUpdates: acc.fieldUpdates + campaign.metrics.fieldUpdates,
+        reportsGenerated: acc.reportsGenerated + campaign.metrics.reportsGenerated,
+        reportsApproved: acc.reportsApproved + campaign.metrics.reportsApproved,
+        reportsUnderReview: acc.reportsUnderReview + (campaign.metrics.reportsUnderReview || 0),
+        reportsNeedingRevision: acc.reportsNeedingRevision + (campaign.metrics.reportsNeedingRevision || 0),
+        pendingApprovals: acc.pendingApprovals + campaign.metrics.pendingApprovals,
+      }
+    },
     {
       activeCampaigns: 0,
-      volunteersAssigned: 0,
       fieldUpdates: 0,
       reportsGenerated: 0,
       reportsApproved: 0,
@@ -46,6 +54,11 @@ export function calculateGlobalMetrics(campaigns = []) {
       pendingApprovals: 0,
     }
   )
+
+  return {
+    ...totals,
+    volunteersAssigned: uniqueAssignedVolunteerIds.size,
+  }
 }
 
 
