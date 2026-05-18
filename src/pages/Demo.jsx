@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Database, FilePlus2, Plus, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
+import { Activity, Database, FilePlus2, Plus, RefreshCw, ShieldCheck, UserPlus, Users, WifiOff } from 'lucide-react'
 import SectionHeader from '../components/common/SectionHeader.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
 import Button from '../components/common/Button.jsx'
@@ -9,23 +9,29 @@ import ImpactReportGenerator from '../components/demo/ImpactReportGenerator.jsx'
 import ReportsHistory from '../components/demo/ReportsHistory.jsx'
 import CreateCampaignPanel from '../components/forms/CreateCampaignPanel.jsx'
 import AddFieldUpdatePanel from '../components/forms/AddFieldUpdatePanel.jsx'
+import AddVolunteerPanel from '../components/forms/AddVolunteerPanel.jsx'
+import AssignVolunteerPanel from '../components/forms/AssignVolunteerPanel.jsx'
 import { getCampaignsWithRelations } from '../services/campaignService.js'
-import { calculateGlobalMetrics, calculateQualityMetrics } from '../utils/calculateMetrics.js'
+import { calculateGlobalMetrics, calculateQualityMetrics, calculateVolunteerMetrics } from '../utils/calculateMetrics.js'
 
 export default function Demo() {
   const [campaigns, setCampaigns] = useState([])
+  const [volunteers, setVolunteers] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [source, setSource] = useState('loading')
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [updateOpen, setUpdateOpen] = useState(false)
+  const [volunteerOpen, setVolunteerOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
   const [actionNotice, setActionNotice] = useState('')
 
   async function loadCampaigns({ preserveSelection = false, preferredId = null } = {}) {
     setLoading(true)
     const result = await getCampaignsWithRelations()
     setCampaigns(result.campaigns)
+    setVolunteers(result.volunteers || [])
     setSource(result.source)
     setErrorMessage(result.error?.message || '')
     setSelectedId((currentId) => {
@@ -43,6 +49,7 @@ export default function Demo() {
   const campaign = useMemo(() => campaigns.find((item) => item.id === selectedId), [campaigns, selectedId])
   const globalMetrics = useMemo(() => calculateGlobalMetrics(campaigns), [campaigns])
   const qualityMetrics = useMemo(() => calculateQualityMetrics(campaigns), [campaigns])
+  const volunteerMetrics = useMemo(() => calculateVolunteerMetrics(volunteers, campaigns, selectedId), [volunteers, campaigns, selectedId])
   const backendReady = source === 'supabase'
 
   async function handleCampaignCreated(createdCampaign) {
@@ -57,10 +64,22 @@ export default function Demo() {
     await loadCampaigns({ preserveSelection: true })
   }
 
+  async function handleVolunteerCreated() {
+    setVolunteerOpen(false)
+    setActionNotice('Volunteer profile created. You can now assign this person to a campaign.')
+    await loadCampaigns({ preserveSelection: true })
+  }
+
+  async function handleVolunteerAssigned() {
+    setAssignOpen(false)
+    setActionNotice('Volunteer assigned to the selected campaign.')
+    await loadCampaigns({ preserveSelection: true })
+  }
+
   return (
     <div className="gradient-bg">
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description="Create campaigns, collect field updates, review metrics, and prepare AI-assisted impact reports with human control." />
+        <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description="Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control." />
 
         <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex flex-col gap-3 rounded-[1.5rem] border border-green-100 bg-white/80 p-4 text-sm shadow-soft sm:flex-row sm:items-center sm:justify-between">
@@ -68,7 +87,7 @@ export default function Demo() {
               {backendReady ? <Database className="text-leaf" size={18} /> : <WifiOff className="text-amber-600" size={18} />}
               <p>
                 {backendReady
-                  ? 'Connected to Supabase backend. Campaigns, updates, and report records are loaded from the database.'
+                  ? 'Connected to Supabase backend. Campaigns, volunteers, updates, and report records are loaded from the database.'
                   : 'Using local fallback data. Add Supabase environment variables to connect live backend records.'}
               </p>
             </div>
@@ -79,7 +98,6 @@ export default function Demo() {
 
           <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
             <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2" size={18} /> New Campaign</Button>
-            <Button variant="secondary" onClick={() => setUpdateOpen(true)} disabled={!campaign} className="disabled:cursor-not-allowed disabled:opacity-60"><FilePlus2 className="mr-2" size={18} /> Add Field Update</Button>
           </div>
         </div>
 
@@ -132,36 +150,32 @@ export default function Demo() {
             </div>
 
             <div className="mt-8 premium-card rounded-[2rem] p-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-2xl bg-green-100 p-3 text-forest"><Activity size={20} /></div>
+                  <div className="rounded-2xl bg-green-100 p-3 text-forest"><Users size={20} /></div>
                   <div>
-                    <h2 className="display-font text-2xl font-black text-ink">Workflow quality indicators</h2>
-                    <p className="mt-1 text-sm text-slate-600">These metrics help observe evidence quality, review discipline, and reporting reliability.</p>
+                    <h2 className="display-font text-2xl font-black text-ink">Volunteer coordination</h2>
+                    <p className="mt-1 text-sm text-slate-600">Track reusable volunteer profiles and campaign assignments.</p>
                   </div>
                 </div>
-                <p className="rounded-full bg-amber-50 px-4 py-2 text-xs font-extrabold text-amber-800">AI drafts remain human-reviewed</p>
+                <Button variant="secondary" onClick={() => setVolunteerOpen(true)}><UserPlus className="mr-2" size={18} /> Add Volunteer</Button>
               </div>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
-                  <p className="text-xs font-bold text-slate-500">Updates / Campaign</p>
-                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.updatesPerCampaign}</p>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Total volunteers</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{volunteerMetrics.totalVolunteers}</p>
                 </div>
-                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
-                  <p className="text-xs font-bold text-slate-500">Approval Rate</p>
-                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.approvalRate}</p>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Free profiles</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{volunteerMetrics.unassignedVolunteers}</p>
                 </div>
-                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
-                  <p className="text-xs font-bold text-slate-500">Review Queue</p>
-                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.reviewQueue}</p>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Available now</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{volunteerMetrics.availableVolunteers}</p>
                 </div>
-                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
-                  <p className="text-xs font-bold text-slate-500">Needs Revision</p>
-                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.needsRevision}</p>
-                </div>
-                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
-                  <p className="text-xs font-bold text-slate-500">Evidence-Ready Campaigns</p>
-                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.evidenceReadyCampaigns}</p>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Can assign here</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{volunteerMetrics.assignableToSelectedCampaign}</p>
                 </div>
               </div>
             </div>
@@ -178,20 +192,39 @@ export default function Demo() {
                 <div className="mt-7 h-3 rounded-full bg-green-100">
                   <div className="h-3 rounded-full bg-leaf" style={{ width: `${campaign.completion}%` }} />
                 </div>
-                <p className="mt-3 text-xs font-medium text-slate-500">Progress calculated from campaign status, field updates, and report activity.</p>
+                <p className="mt-3 text-xs font-medium text-slate-500">Progress calculated from campaign status, field updates, volunteers, and report activity.</p>
               </div>
 
               <div className="premium-card rounded-[2rem] p-7 lg:col-span-2">
-                <h2 className="display-font text-3xl font-extrabold text-ink">Assigned volunteers</h2>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="display-font text-3xl font-extrabold text-ink">Assigned volunteers</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">People connected to this campaign and the role they play in the workflow.</p>
+                  </div>
+                  <Button variant="secondary" onClick={() => setAssignOpen(true)}><Users className="mr-2" size={18} /> Assign Volunteer</Button>
+                </div>
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
                   {campaign.volunteers.length > 0 ? campaign.volunteers.map((volunteer) => (
-                    <div key={`${volunteer.name}-${volunteer.role}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
-                      <p className="font-bold text-ink">{volunteer.name}</p>
-                      <p className="mt-1 text-sm text-slate-600">{volunteer.role}</p>
-                      {volunteer.city && <p className="mt-2 text-xs font-semibold text-slate-500">{volunteer.city}</p>}
+                    <div key={volunteer.id || `${volunteer.name}-${volunteer.assignmentRole}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-bold text-ink">{volunteer.name}</p>
+                          <p className="mt-1 text-sm text-slate-600">{volunteer.assignmentRole}</p>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-forest">{volunteer.availabilityLabel}</span>
+                      </div>
+                      <p className="mt-3 text-xs font-semibold text-slate-500">Profile role: {volunteer.role}</p>
+                      {volunteer.city && <p className="mt-1 text-xs font-semibold text-slate-500">{volunteer.city}</p>}
+                      {volunteer.assignmentCount > 1 && (
+                        <p className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-500">
+                          Also active in {volunteer.assignmentCount - 1} other campaign{volunteer.assignmentCount - 1 > 1 ? 's' : ''}
+                        </p>
+                      )}
                     </div>
                   )) : (
-                    <p className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm text-slate-600">No volunteers assigned yet.</p>
+                    <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-6 text-slate-600">
+                      No volunteers assigned yet. Add volunteer profiles, then assign them to this campaign.
+                    </div>
                   )}
                 </div>
               </div>
@@ -227,6 +260,43 @@ export default function Demo() {
               </div>
               <ReportsHistory reports={campaign.reports || []} />
             </div>
+
+            <div className="mt-8 premium-card rounded-[2rem] p-7">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-green-100 p-3 text-forest"><Activity size={20} /></div>
+                  <div>
+                    <h2 className="display-font text-2xl font-black text-ink">Workflow quality</h2>
+                    <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                      A compact check on evidence depth and review discipline. This stays below the main working areas so NGO users can focus first on action.
+                    </p>
+                  </div>
+                </div>
+                <p className="rounded-full bg-amber-50 px-4 py-2 text-xs font-extrabold text-amber-800">AI drafts remain human-reviewed</p>
+              </div>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Updates / Campaign</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.updatesPerCampaign}</p>
+                </div>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Approval Rate</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.approvalRate}</p>
+                </div>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Review Queue</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.reviewQueue}</p>
+                </div>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Needs Revision</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.needsRevision}</p>
+                </div>
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Evidence-Ready</p>
+                  <p className="mt-2 display-font text-3xl font-black text-forest">{qualityMetrics.evidenceReadyCampaigns}</p>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </section>
@@ -237,6 +307,14 @@ export default function Demo() {
 
       <SlideOver open={updateOpen} title="Add field update" description="Capture verified field evidence before generating impact reports." onClose={() => setUpdateOpen(false)}>
         <AddFieldUpdatePanel campaign={campaign} backendReady={backendReady} onCreated={handleFieldUpdateCreated} />
+      </SlideOver>
+
+      <SlideOver open={volunteerOpen} title="Add volunteer" description="Create a reusable volunteer profile before assigning them to a campaign." onClose={() => setVolunteerOpen(false)}>
+        <AddVolunteerPanel backendReady={backendReady} onCreated={handleVolunteerCreated} />
+      </SlideOver>
+
+      <SlideOver open={assignOpen} title="Assign volunteer" description="Link an existing volunteer to the selected campaign with a clear assignment role." onClose={() => setAssignOpen(false)}>
+        <AssignVolunteerPanel campaign={campaign} volunteers={volunteers} backendReady={backendReady} onAssigned={handleVolunteerAssigned} />
       </SlideOver>
     </div>
   )

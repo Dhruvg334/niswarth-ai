@@ -16,6 +16,12 @@ const statusLabels = {
   paused: 'Paused',
 }
 
+const availabilityLabels = {
+  available: 'Available',
+  limited: 'Limited',
+  unavailable: 'Unavailable',
+}
+
 function normalizeFallbackCampaign(campaign) {
   return {
     ...campaign,
@@ -30,9 +36,14 @@ function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdat
     const assignedVolunteers = assignmentRows.map((assignment) => {
       const volunteer = volunteers.find((item) => item.id === assignment.volunteer_id)
       return {
+        id: volunteer?.id || assignment.volunteer_id,
         name: volunteer?.name || 'Unnamed volunteer',
-        role: assignment.assignment_role || volunteer?.role || 'Volunteer',
+        role: volunteer?.role || 'Volunteer',
+        assignmentRole: assignment.assignment_role || volunteer?.role || 'Volunteer',
         city: volunteer?.city || '',
+        availability: volunteer?.availability || 'available',
+        availabilityLabel: availabilityLabels[volunteer?.availability] || volunteer?.availability || 'Available',
+        assignmentCount: campaignVolunteers.filter((item) => item.volunteer_id === assignment.volunteer_id).length,
       }
     })
 
@@ -92,10 +103,39 @@ function buildNextActions(type, status) {
   return ['Review campaign progress', ...shared]
 }
 
+
+function enrichVolunteerProfiles({ volunteers, campaignVolunteers, campaigns }) {
+  const campaignTitleById = new Map(campaigns.map((campaign) => [campaign.id, campaign.title]))
+  const assignmentsByVolunteerId = campaignVolunteers.reduce((map, assignment) => {
+    if (!map.has(assignment.volunteer_id)) map.set(assignment.volunteer_id, [])
+    map.get(assignment.volunteer_id).push({
+      campaignId: assignment.campaign_id,
+      campaignTitle: campaignTitleById.get(assignment.campaign_id) || 'Unknown campaign',
+      assignmentRole: assignment.assignment_role || 'Volunteer',
+    })
+    return map
+  }, new Map())
+
+  return volunteers.map((volunteer) => {
+    const assignments = assignmentsByVolunteerId.get(volunteer.id) || []
+    return {
+      ...volunteer,
+      availabilityLabel: availabilityLabels[volunteer.availability] || volunteer.availability,
+      assignments,
+      assignmentCount: assignments.length,
+      isAssigned: assignments.length > 0,
+      assignmentSummary: assignments.length > 0
+        ? `Also on ${assignments.length} campaign${assignments.length > 1 ? 's' : ''}`
+        : 'Free profile',
+    }
+  })
+}
+
 export async function getCampaignsWithRelations() {
   if (!isSupabaseConfigured) {
     return {
       campaigns: fallbackCampaigns.map(normalizeFallbackCampaign),
+      volunteers: [],
       source: 'fallback',
       error: null,
     }
@@ -121,12 +161,18 @@ export async function getCampaignsWithRelations() {
         fieldUpdates: fieldUpdatesRes.data || [],
         impactReports: impactReportsRes.data || [],
       }),
+      volunteers: enrichVolunteerProfiles({
+        volunteers: volunteersRes.data || [],
+        campaignVolunteers: campaignVolunteersRes.data || [],
+        campaigns: campaignsRes.data || [],
+      }),
       source: 'supabase',
       error: null,
     }
   } catch (error) {
     return {
       campaigns: fallbackCampaigns.map(normalizeFallbackCampaign),
+      volunteers: [],
       source: 'fallback',
       error,
     }
@@ -178,4 +224,46 @@ export async function createFieldUpdate({ campaignId, updateText, location = '',
     .single()
 
   return { fieldUpdate: data, error, skipped: false }
+}
+
+
+export async function createVolunteer({ name, role, city = '', availability = 'available' }) {
+  if (!isSupabaseConfigured) {
+    return { volunteer: null, error: new Error('Supabase is not configured.'), skipped: true }
+  }
+
+  const payload = {
+    name: name.trim(),
+    role: role.trim(),
+    city: city.trim() || null,
+    availability,
+  }
+
+  const { data, error } = await supabase
+    .from('volunteers')
+    .insert(payload)
+    .select('*')
+    .single()
+
+  return { volunteer: data, error, skipped: false }
+}
+
+export async function assignVolunteerToCampaign({ campaignId, volunteerId, assignmentRole }) {
+  if (!isSupabaseConfigured) {
+    return { assignment: null, error: new Error('Supabase is not configured.'), skipped: true }
+  }
+
+  const payload = {
+    campaign_id: campaignId,
+    volunteer_id: volunteerId,
+    assignment_role: assignmentRole.trim(),
+  }
+
+  const { data, error } = await supabase
+    .from('campaign_volunteers')
+    .insert(payload)
+    .select('*')
+    .single()
+
+  return { assignment: data, error, skipped: false }
 }

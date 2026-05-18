@@ -68,6 +68,19 @@ The workflow supports:
 - Marking reports as human-reviewed
 - Refreshing backend records from the dashboard
 
+### Volunteer Management and Assignment
+
+The dashboard supports a volunteer coordination loop connected to Supabase. NGO teams can create reusable volunteer profiles and assign existing volunteers to selected campaigns with a clear assignment role.
+
+The workflow supports:
+
+- Creating volunteer profiles
+- Tracking volunteer role, city, and availability
+- Assigning volunteers to campaigns
+- Avoiding duplicate assignments for the same campaign
+- Displaying assigned volunteers inside the campaign dashboard
+- Showing volunteer coordination metrics such as total volunteers, assigned volunteers, unassigned volunteers, and campaign-specific assignments
+
 ### Campaign Types
 
 The dashboard includes realistic campaign types:
@@ -80,7 +93,7 @@ Each campaign has its own field updates, volunteers, events, and reporting conte
 
 ### AI-Assisted Impact Report Draft
 
-The project includes a simulated AI report generation flow.
+The project includes an AI-assisted report generation flow.
 
 Users can generate an impact report draft based on selected campaign updates. The AI output is positioned as human-reviewed, not automatically final.
 
@@ -121,14 +134,13 @@ Fields include:
 - Vite
 - Tailwind CSS
 - Supabase
+- Vercel Serverless Functions
+- Gemini 2.5 Flash API
 - React Router
 - Lucide React
 - JavaScript
 - HTML
 - CSS
-- Supabase
-- Vercel Serverless Functions
-- Gemini 2.5 Flash API
 
 ---
 
@@ -138,6 +150,7 @@ Fields include:
 niswarth-ai/
 ├── api/
 │   └── generate-report.js
+├── database/
 ├── public/
 ├── src/
 │   ├── assets/
@@ -148,7 +161,6 @@ niswarth-ai/
 │   │   ├── forms/
 │   │   └── dashboard/
 │   ├── data/
-│   ├── database/
 │   ├── lib/
 │   ├── pages/
 │   ├── services/

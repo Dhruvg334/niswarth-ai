@@ -65,3 +65,36 @@ export function calculateQualityMetrics(campaigns = []) {
     evidenceReadyCampaigns: campaigns.filter((campaign) => campaign.metrics.fieldUpdates > 0).length,
   }
 }
+
+
+export function calculateVolunteerMetrics(volunteers = [], campaigns = [], selectedCampaignId = null) {
+  const assignedIds = new Set()
+  campaigns.forEach((campaign) => {
+    ;(campaign.volunteers || []).forEach((volunteer) => {
+      if (volunteer.id) assignedIds.add(volunteer.id)
+    })
+  })
+
+  const selectedCampaign = campaigns.find((campaign) => campaign.id === selectedCampaignId)
+  const selectedCampaignAssignedIds = new Set((selectedCampaign?.volunteers || []).map((volunteer) => volunteer.id).filter(Boolean))
+
+  const totalVolunteers = volunteers.length || assignedIds.size
+  const assignedVolunteers = assignedIds.size
+  const unassignedVolunteers = volunteers.filter((volunteer) => !assignedIds.has(volunteer.id)).length
+  const availableUnassignedVolunteers = volunteers.filter(
+    (volunteer) => volunteer.availability === 'available' && !assignedIds.has(volunteer.id)
+  ).length
+  const assignableToSelectedCampaign = volunteers.filter(
+    (volunteer) => volunteer.availability !== 'unavailable' && !selectedCampaignAssignedIds.has(volunteer.id)
+  ).length
+  const limitedVolunteers = volunteers.filter((volunteer) => volunteer.availability === 'limited').length
+
+  return {
+    totalVolunteers,
+    assignedVolunteers,
+    unassignedVolunteers: Math.max(unassignedVolunteers, 0),
+    availableVolunteers: availableUnassignedVolunteers,
+    assignableToSelectedCampaign,
+    limitedVolunteers,
+  }
+}
