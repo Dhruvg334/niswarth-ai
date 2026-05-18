@@ -12,9 +12,12 @@ import AddFieldUpdatePanel from '../components/forms/AddFieldUpdatePanel.jsx'
 import AddVolunteerPanel from '../components/forms/AddVolunteerPanel.jsx'
 import AssignVolunteerPanel from '../components/forms/AssignVolunteerPanel.jsx'
 import { getCampaignsWithRelations } from '../services/campaignService.js'
+import { useAuth } from '../contexts/AuthContext.jsx'
 import { calculateGlobalMetrics, calculateQualityMetrics, calculateVolunteerMetrics } from '../utils/calculateMetrics.js'
 
 export default function Demo() {
+  const { workspace } = useAuth()
+  const workspaceId = workspace?.id || null
   const [campaigns, setCampaigns] = useState([])
   const [volunteers, setVolunteers] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -29,7 +32,7 @@ export default function Demo() {
 
   async function loadCampaigns({ preserveSelection = false, preferredId = null } = {}) {
     setLoading(true)
-    const result = await getCampaignsWithRelations()
+    const result = await getCampaignsWithRelations({ organizationId: workspaceId })
     setCampaigns(result.campaigns)
     setVolunteers(result.volunteers || [])
     setSource(result.source)
@@ -44,7 +47,7 @@ export default function Demo() {
 
   useEffect(() => {
     loadCampaigns()
-  }, [])
+  }, [workspaceId])
 
   const campaign = useMemo(() => campaigns.find((item) => item.id === selectedId), [campaigns, selectedId])
   const globalMetrics = useMemo(() => calculateGlobalMetrics(campaigns), [campaigns])
@@ -79,7 +82,7 @@ export default function Demo() {
   return (
     <div className="gradient-bg">
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description="Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control." />
+        <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description={workspace?.name ? `Workspace: ${workspace.name}. Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control.` : 'Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control.'} />
 
         <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex flex-col gap-3 rounded-[1.5rem] border border-green-100 bg-white/80 p-4 text-sm shadow-soft sm:flex-row sm:items-center sm:justify-between">
@@ -87,7 +90,7 @@ export default function Demo() {
               {backendReady ? <Database className="text-leaf" size={18} /> : <WifiOff className="text-amber-600" size={18} />}
               <p>
                 {backendReady
-                  ? 'Connected to Supabase backend. Campaigns, volunteers, updates, and report records are loaded from the database.'
+                  ? `Connected to ${workspace?.name || 'your NGO workspace'}. Campaigns, volunteers, updates, and report records are organization-scoped.`
                   : 'Using local fallback data. Add Supabase environment variables to connect live backend records.'}
               </p>
             </div>
@@ -231,7 +234,7 @@ export default function Demo() {
             </div>
 
             <div className="mt-8">
-              <ImpactReportGenerator campaign={campaign} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
+              <ImpactReportGenerator campaign={campaign} organizationId={workspaceId} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
             </div>
 
             <div className="mt-8 grid gap-8 xl:grid-cols-2">
@@ -302,15 +305,15 @@ export default function Demo() {
       </section>
 
       <SlideOver open={createOpen} title="Create campaign" description="Add a campaign record that can receive volunteers, field updates, and report drafts." onClose={() => setCreateOpen(false)}>
-        <CreateCampaignPanel backendReady={backendReady} onCreated={handleCampaignCreated} />
+        <CreateCampaignPanel backendReady={backendReady} organizationId={workspaceId} onCreated={handleCampaignCreated} />
       </SlideOver>
 
       <SlideOver open={updateOpen} title="Add field update" description="Capture verified field evidence before generating impact reports." onClose={() => setUpdateOpen(false)}>
-        <AddFieldUpdatePanel campaign={campaign} backendReady={backendReady} onCreated={handleFieldUpdateCreated} />
+        <AddFieldUpdatePanel campaign={campaign} backendReady={backendReady} organizationId={workspaceId} onCreated={handleFieldUpdateCreated} />
       </SlideOver>
 
       <SlideOver open={volunteerOpen} title="Add volunteer" description="Create a reusable volunteer profile before assigning them to a campaign." onClose={() => setVolunteerOpen(false)}>
-        <AddVolunteerPanel backendReady={backendReady} onCreated={handleVolunteerCreated} />
+        <AddVolunteerPanel backendReady={backendReady} organizationId={workspaceId} onCreated={handleVolunteerCreated} />
       </SlideOver>
 
       <SlideOver open={assignOpen} title="Assign volunteer" description="Link an existing volunteer to the selected campaign with a clear assignment role." onClose={() => setAssignOpen(false)}>

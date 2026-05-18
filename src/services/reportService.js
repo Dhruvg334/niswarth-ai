@@ -1,13 +1,18 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
 
-export async function saveImpactReportDraft({ campaignId, draftText, editedText = '' }) {
+export async function saveImpactReportDraft({ organizationId, campaignId, draftText, editedText = '' }) {
   if (!isSupabaseConfigured) {
     return { report: null, error: null, skipped: true }
+  }
+
+  if (!organizationId) {
+    return { report: null, error: new Error('Workspace is required to save an impact report.'), skipped: false }
   }
 
   const { data, error } = await supabase
     .from('impact_reports')
     .insert({
+      organization_id: organizationId,
       campaign_id: campaignId,
       draft_text: draftText,
       edited_text: editedText || draftText,

@@ -30,7 +30,7 @@ function FeedbackMessage({ type, message }) {
   )
 }
 
-export default function ImpactReportGenerator({ campaign, onReportSaved }) {
+export default function ImpactReportGenerator({ campaign, organizationId, onReportSaved }) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [report, setReport] = useState(null)
@@ -70,6 +70,7 @@ export default function ImpactReportGenerator({ campaign, onReportSaved }) {
       if (campaign.dbBacked) {
         setSaving(true)
         const { report: savedReport, error } = await saveImpactReportDraft({
+          organizationId,
           campaignId: campaign.id,
           draftText: generatedReport.summary,
           editedText: generatedReport.summary,
@@ -95,6 +96,7 @@ export default function ImpactReportGenerator({ campaign, onReportSaved }) {
       if (campaign.dbBacked) {
         setSaving(true)
         const { report: savedReport, error: saveError } = await saveImpactReportDraft({
+          organizationId,
           campaignId: campaign.id,
           draftText: fallbackReport.summary,
           editedText: fallbackReport.summary,
