@@ -288,3 +288,26 @@ export async function assignVolunteerToCampaign({ campaignId, volunteerId, assig
 
   return { assignment: data, error, skipped: false }
 }
+
+
+export async function deleteCampaign({ organizationId, campaignId }) {
+  if (!isSupabaseConfigured) {
+    return { error: new Error('Supabase is not configured.'), skipped: true }
+  }
+
+  if (!organizationId) {
+    return { error: new Error('Workspace is required to delete a campaign.'), skipped: false }
+  }
+
+  if (!campaignId) {
+    return { error: new Error('Campaign is required for deletion.'), skipped: false }
+  }
+
+  const { error } = await supabase
+    .from('campaigns')
+    .delete()
+    .eq('id', campaignId)
+    .eq('organization_id', organizationId)
+
+  return { error, skipped: false }
+}

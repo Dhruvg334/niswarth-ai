@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Database, FilePlus2, Plus, RefreshCw, ShieldCheck, UserPlus, Users, WifiOff } from 'lucide-react'
+import { Activity, Database, FilePlus2, Plus, RefreshCw, ShieldCheck, Trash2, UserPlus, Users, WifiOff } from 'lucide-react'
 import SectionHeader from '../components/common/SectionHeader.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
 import Button from '../components/common/Button.jsx'
@@ -11,13 +11,16 @@ import CreateCampaignPanel from '../components/forms/CreateCampaignPanel.jsx'
 import AddFieldUpdatePanel from '../components/forms/AddFieldUpdatePanel.jsx'
 import AddVolunteerPanel from '../components/forms/AddVolunteerPanel.jsx'
 import AssignVolunteerPanel from '../components/forms/AssignVolunteerPanel.jsx'
-import { getCampaignsWithRelations } from '../services/campaignService.js'
+import { deleteCampaign, getCampaignsWithRelations } from '../services/campaignService.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { calculateGlobalMetrics, calculateQualityMetrics, calculateVolunteerMetrics } from '../utils/calculateMetrics.js'
 
 export default function Demo() {
   const { workspace } = useAuth()
   const workspaceId = workspace?.id || null
+  const workspaceRole = workspace?.role || 'viewer'
+  const roleLabel = workspaceRole ? `${workspaceRole.charAt(0).toUpperCase()}${workspaceRole.slice(1)}` : 'Viewer'
+  const isAdmin = workspaceRole === 'admin'
   const [campaigns, setCampaigns] = useState([])
   const [volunteers, setVolunteers] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -29,6 +32,8 @@ export default function Demo() {
   const [volunteerOpen, setVolunteerOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [actionNotice, setActionNotice] = useState('')
+  const [starterNoticeVisible, setStarterNoticeVisible] = useState(false)
+  const [deletingCampaignId, setDeletingCampaignId] = useState(null)
 
   async function loadCampaigns({ preserveSelection = false, preferredId = null } = {}) {
     setLoading(true)
@@ -47,6 +52,16 @@ export default function Demo() {
 
   useEffect(() => {
     loadCampaigns()
+  }, [workspaceId])
+
+  useEffect(() => {
+    if (!workspaceId) {
+      setStarterNoticeVisible(false)
+      return
+    }
+
+    const dismissed = window.localStorage.getItem(`niswarth-starter-notice-${workspaceId}`)
+    setStarterNoticeVisible(dismissed !== 'dismissed')
   }, [workspaceId])
 
   const campaign = useMemo(() => campaigns.find((item) => item.id === selectedId), [campaigns, selectedId])
@@ -79,10 +94,38 @@ export default function Demo() {
     await loadCampaigns({ preserveSelection: true })
   }
 
+  function dismissStarterNotice() {
+    if (workspaceId) window.localStorage.setItem(`niswarth-starter-notice-${workspaceId}`, 'dismissed')
+    setStarterNoticeVisible(false)
+  }
+
+  async function handleDeleteCampaign() {
+    if (!campaign?.id || !isAdmin) return
+
+    const confirmed = window.confirm(`Delete "${campaign.title}"? This will also remove its field updates, volunteer assignments, and report history from this workspace.`)
+    if (!confirmed) return
+
+    setDeletingCampaignId(campaign.id)
+    setActionNotice('')
+    setErrorMessage('')
+
+    const { error } = await deleteCampaign({ organizationId: workspaceId, campaignId: campaign.id })
+
+    setDeletingCampaignId(null)
+
+    if (error) {
+      setErrorMessage(error.message || 'Unable to delete campaign.')
+      return
+    }
+
+    setActionNotice('Campaign deleted. Related updates, assignments, and reports were removed from this workspace.')
+    await loadCampaigns({ preserveSelection: false })
+  }
+
   return (
     <div className="gradient-bg">
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description={workspace?.name ? `Workspace: ${workspace.name}. Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control.` : 'Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control.'} />
+        <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description={workspace?.name ? `Workspace: ${workspace.name}. Your role: ${roleLabel}. Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control.` : 'Create campaigns, assign volunteers, collect field updates, review metrics, and prepare AI-assisted impact reports with human control.'} />
 
         <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex flex-col gap-3 rounded-[1.5rem] border border-green-100 bg-white/80 p-4 text-sm shadow-soft sm:flex-row sm:items-center sm:justify-between">
@@ -90,7 +133,7 @@ export default function Demo() {
               {backendReady ? <Database className="text-leaf" size={18} /> : <WifiOff className="text-amber-600" size={18} />}
               <p>
                 {backendReady
-                  ? `Connected to ${workspace?.name || 'your NGO workspace'}. Campaigns, volunteers, updates, and report records are organization-scoped.`
+                  ? `Connected to ${workspace?.name || 'your NGO workspace'} as ${roleLabel}. Campaigns, volunteers, updates, and report records are organization-scoped.`
                   : 'Using local fallback data. Add Supabase environment variables to connect live backend records.'}
               </p>
             </div>
@@ -100,7 +143,7 @@ export default function Demo() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
-            <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2" size={18} /> New Campaign</Button>
+            {isAdmin && <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2" size={18} /> New Campaign</Button>}
           </div>
         </div>
 
@@ -120,6 +163,23 @@ export default function Demo() {
           <div className="mt-4 flex items-start gap-3 rounded-[1.25rem] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-800">
             <ShieldCheck size={18} className="mt-0.5 shrink-0" />
             <p>{actionNotice}</p>
+          </div>
+        )}
+
+        {starterNoticeVisible && backendReady && (
+          <div className="mt-4 rounded-[1.5rem] border border-green-200 bg-white/90 p-5 shadow-soft">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex items-start gap-3">
+                <ShieldCheck size={20} className="mt-1 shrink-0 text-leaf" />
+                <div>
+                  <p className="font-extrabold text-ink">Starter workspace data has been added for testing.</p>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+                    Your workspace includes sample campaigns, volunteers, and field updates so you can test the workflow immediately. Admins can delete these campaigns and create their own records whenever they are ready.
+                  </p>
+                </div>
+              </div>
+              <button onClick={dismissStarterNotice} className="rounded-full border border-green-200 px-4 py-2 text-sm font-bold text-forest hover:bg-green-50">Got it</button>
+            </div>
           </div>
         )}
 
@@ -161,7 +221,7 @@ export default function Demo() {
                     <p className="mt-1 text-sm text-slate-600">Track reusable volunteer profiles and campaign assignments.</p>
                   </div>
                 </div>
-                <Button variant="secondary" onClick={() => setVolunteerOpen(true)}><UserPlus className="mr-2" size={18} /> Add Volunteer</Button>
+                {isAdmin && <Button variant="secondary" onClick={() => setVolunteerOpen(true)}><UserPlus className="mr-2" size={18} /> Add Volunteer</Button>}
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
@@ -185,7 +245,22 @@ export default function Demo() {
 
             <div className="mt-8 grid gap-8 lg:grid-cols-3">
               <div className="premium-card rounded-[2rem] p-7 lg:col-span-1">
-                <h2 className="display-font text-3xl font-extrabold text-ink">Campaign overview</h2>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="display-font text-3xl font-extrabold text-ink">Campaign overview</h2>
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Managed by {roleLabel}</p>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteCampaign}
+                      disabled={deletingCampaignId === campaign.id}
+                      className="inline-flex items-center justify-center rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 className="mr-2" size={14} /> {deletingCampaignId === campaign.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  )}
+                </div>
                 <div className="mt-6 space-y-4 text-sm text-slate-600">
                   <p><span className="font-bold text-ink">Title:</span> {campaign.title}</p>
                   <p><span className="font-bold text-ink">Location:</span> {campaign.location}</p>
@@ -204,7 +279,7 @@ export default function Demo() {
                     <h2 className="display-font text-3xl font-extrabold text-ink">Assigned volunteers</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">People connected to this campaign and the role they play in the workflow.</p>
                   </div>
-                  <Button variant="secondary" onClick={() => setAssignOpen(true)}><Users className="mr-2" size={18} /> Assign Volunteer</Button>
+                  {isAdmin && <Button variant="secondary" onClick={() => setAssignOpen(true)}><Users className="mr-2" size={18} /> Assign Volunteer</Button>}
                 </div>
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
                   {campaign.volunteers.length > 0 ? campaign.volunteers.map((volunteer) => (
@@ -226,7 +301,7 @@ export default function Demo() {
                     </div>
                   )) : (
                     <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-6 text-slate-600">
-                      No volunteers assigned yet. Add volunteer profiles, then assign them to this campaign.
+                      No volunteers assigned yet. Admins can add volunteer profiles and assign them to this campaign.
                     </div>
                   )}
                 </div>
@@ -244,7 +319,7 @@ export default function Demo() {
                     <h2 className="display-font text-3xl font-extrabold text-ink">Field updates</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">Evidence collected from volunteers and field teams for the selected campaign.</p>
                   </div>
-                  <Button variant="secondary" onClick={() => setUpdateOpen(true)}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>
+                  {isAdmin && <Button variant="secondary" onClick={() => setUpdateOpen(true)}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>}
                 </div>
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   {campaign.fieldUpdates?.length > 0 ? campaign.fieldUpdates.map((update, index) => (
