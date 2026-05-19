@@ -64,6 +64,7 @@ function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdat
 
     return {
       id: campaign.id,
+      organizationId: campaign.organization_id,
       type: typeLabels[campaign.type] || campaign.type,
       rawType: campaign.type,
       title: campaign.title,
@@ -131,27 +132,33 @@ function enrichVolunteerProfiles({ volunteers, campaignVolunteers, campaigns }) 
   })
 }
 
-export async function getCampaignsWithRelations() {
-  if (!isSupabaseConfigured) {
+export async function getCampaignsWithRelations({ organizationId } = {}) {
+  if (!isSupabaseConfigured || !organizationId) {
     return {
       campaigns: fallbackCampaigns.map(normalizeFallbackCampaign),
       volunteers: [],
-      source: 'fallback',
+      source: isSupabaseConfigured ? 'empty-workspace' : 'fallback',
       error: null,
     }
   }
 
   try {
-    const [campaignsRes, volunteersRes, campaignVolunteersRes, fieldUpdatesRes, impactReportsRes] = await Promise.all([
-      supabase.from('campaigns').select('*').order('created_at', { ascending: true }),
-      supabase.from('volunteers').select('*').order('created_at', { ascending: true }),
-      supabase.from('campaign_volunteers').select('*'),
-      supabase.from('field_updates').select('*').order('created_at', { ascending: false }),
-      supabase.from('impact_reports').select('*').order('created_at', { ascending: false }),
+    const [campaignsRes, volunteersRes, fieldUpdatesRes, impactReportsRes] = await Promise.all([
+      supabase.from('campaigns').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true }),
+      supabase.from('volunteers').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true }),
+      supabase.from('field_updates').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }),
+      supabase.from('impact_reports').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }),
     ])
 
-    const firstError = [campaignsRes, volunteersRes, campaignVolunteersRes, fieldUpdatesRes, impactReportsRes].find((result) => result.error)?.error
+    const firstError = [campaignsRes, volunteersRes, fieldUpdatesRes, impactReportsRes].find((result) => result.error)?.error
     if (firstError) throw firstError
+
+    const campaignIds = (campaignsRes.data || []).map((campaign) => campaign.id)
+    const campaignVolunteersRes = campaignIds.length > 0
+      ? await supabase.from('campaign_volunteers').select('*').in('campaign_id', campaignIds)
+      : { data: [], error: null }
+
+    if (campaignVolunteersRes.error) throw campaignVolunteersRes.error
 
     return {
       campaigns: mapCampaignRows({
@@ -179,13 +186,17 @@ export async function getCampaignsWithRelations() {
   }
 }
 
-
-export async function createCampaign({ title, type, location, status = 'planning', goal = '', startDate = '', endDate = '' }) {
+export async function createCampaign({ organizationId, title, type, location, status = 'planning', goal = '', startDate = '', endDate = '' }) {
   if (!isSupabaseConfigured) {
     return { campaign: null, error: new Error('Supabase is not configured.'), skipped: true }
   }
 
+  if (!organizationId) {
+    return { campaign: null, error: new Error('Workspace is required to create a campaign.'), skipped: false }
+  }
+
   const payload = {
+    organization_id: organizationId,
     title: title.trim(),
     type,
     location: location.trim(),
@@ -204,12 +215,17 @@ export async function createCampaign({ title, type, location, status = 'planning
   return { campaign: data, error, skipped: false }
 }
 
-export async function createFieldUpdate({ campaignId, updateText, location = '', submittedBy = '', evidenceType = 'text' }) {
+export async function createFieldUpdate({ organizationId, campaignId, updateText, location = '', submittedBy = '', evidenceType = 'text' }) {
   if (!isSupabaseConfigured) {
     return { fieldUpdate: null, error: new Error('Supabase is not configured.'), skipped: true }
   }
 
+  if (!organizationId) {
+    return { fieldUpdate: null, error: new Error('Workspace is required to add a field update.'), skipped: false }
+  }
+
   const payload = {
+    organization_id: organizationId,
     campaign_id: campaignId,
     update_text: updateText.trim(),
     location: location.trim() || null,
@@ -227,12 +243,17 @@ export async function createFieldUpdate({ campaignId, updateText, location = '',
 }
 
 
-export async function createVolunteer({ name, role, city = '', availability = 'available' }) {
+export async function createVolunteer({ organizationId, name, role, city = '', availability = 'available' }) {
   if (!isSupabaseConfigured) {
     return { volunteer: null, error: new Error('Supabase is not configured.'), skipped: true }
   }
 
+  if (!organizationId) {
+    return { volunteer: null, error: new Error('Workspace is required to create a volunteer.'), skipped: false }
+  }
+
   const payload = {
+    organization_id: organizationId,
     name: name.trim(),
     role: role.trim(),
     city: city.trim() || null,
@@ -266,4 +287,27 @@ export async function assignVolunteerToCampaign({ campaignId, volunteerId, assig
     .single()
 
   return { assignment: data, error, skipped: false }
+}
+
+
+export async function deleteCampaign({ organizationId, campaignId }) {
+  if (!isSupabaseConfigured) {
+    return { error: new Error('Supabase is not configured.'), skipped: true }
+  }
+
+  if (!organizationId) {
+    return { error: new Error('Workspace is required to delete a campaign.'), skipped: false }
+  }
+
+  if (!campaignId) {
+    return { error: new Error('Campaign is required for deletion.'), skipped: false }
+  }
+
+  const { error } = await supabase
+    .from('campaigns')
+    .delete()
+    .eq('id', campaignId)
+    .eq('organization_id', organizationId)
+
+  return { error, skipped: false }
 }

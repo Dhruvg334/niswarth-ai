@@ -19,7 +19,7 @@ function validateVolunteer(form) {
   return errors
 }
 
-export default function AddVolunteerPanel({ backendReady, onCreated }) {
+export default function AddVolunteerPanel({ backendReady, organizationId, onCreated }) {
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -37,13 +37,13 @@ export default function AddVolunteerPanel({ backendReady, onCreated }) {
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
-    if (!backendReady) {
-      setSubmitError('Connect Supabase before creating volunteer records.')
+    if (!backendReady || !organizationId) {
+      setSubmitError('Create or select a workspace before creating volunteer records.')
       return
     }
 
     setSubmitting(true)
-    const { volunteer, error } = await createVolunteer(form)
+    const { volunteer, error } = await createVolunteer({ organizationId, ...form })
     setSubmitting(false)
 
     if (error) {

@@ -18,7 +18,7 @@ function validateFieldUpdate(form) {
   return errors
 }
 
-export default function AddFieldUpdatePanel({ campaign, backendReady, onCreated }) {
+export default function AddFieldUpdatePanel({ campaign, backendReady, organizationId, onCreated }) {
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -36,13 +36,13 @@ export default function AddFieldUpdatePanel({ campaign, backendReady, onCreated 
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
-    if (!backendReady || !campaign?.dbBacked) {
-      setSubmitError('Connect Supabase and select a backend campaign before adding field updates.')
+    if (!backendReady || !organizationId || !campaign?.dbBacked) {
+      setSubmitError('Select a workspace-backed campaign before adding field updates.')
       return
     }
 
     setSubmitting(true)
-    const { fieldUpdate, error } = await createFieldUpdate({ campaignId: campaign.id, ...form })
+    const { fieldUpdate, error } = await createFieldUpdate({ organizationId, campaignId: campaign.id, ...form })
     setSubmitting(false)
 
     if (error) {

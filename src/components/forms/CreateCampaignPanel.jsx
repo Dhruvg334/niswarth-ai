@@ -23,7 +23,7 @@ function validateCampaign(form) {
   return errors
 }
 
-export default function CreateCampaignPanel({ backendReady, onCreated }) {
+export default function CreateCampaignPanel({ backendReady, organizationId, onCreated }) {
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -41,13 +41,13 @@ export default function CreateCampaignPanel({ backendReady, onCreated }) {
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
-    if (!backendReady) {
-      setSubmitError('Connect Supabase before creating live campaign records.')
+    if (!backendReady || !organizationId) {
+      setSubmitError('Create or select a workspace before creating campaign records.')
       return
     }
 
     setSubmitting(true)
-    const { campaign, error } = await createCampaign(form)
+    const { campaign, error } = await createCampaign({ organizationId, ...form })
     setSubmitting(false)
 
     if (error) {
