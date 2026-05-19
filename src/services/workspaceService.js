@@ -8,7 +8,7 @@ function normalizeWorkspace(organization, role = 'admin') {
     name: organization.name,
     city: organization.city || '',
     role,
-    createdAt: organization.created_at,
+    createdAt: organization.created_at || new Date().toISOString(),
   }
 }
 
@@ -55,16 +55,16 @@ export async function createWorkspace({ name, city }) {
   if (error) return { workspace: null, error }
   if (!organizationId) return { workspace: null, error: new Error('Workspace was not created. No organization ID was returned.') }
 
-  const { data, error: fetchError } = await supabase
-    .from('organizations')
-    .select('id, name, city, created_at')
-    .eq('id', organizationId)
-    .maybeSingle()
-
-  if (fetchError) return { workspace: null, error: fetchError }
-
+  // Do not immediately re-query the organization here.
+  // The RPC has already created the organization and membership. Returning an optimistic
+  // workspace avoids UI stalls caused by auth/session refocus events or delayed RLS reads.
   return {
-    workspace: normalizeWorkspace(data || { id: organizationId, name: cleanName, city: cleanCity, created_at: new Date().toISOString() }, 'admin'),
+    workspace: normalizeWorkspace({
+      id: organizationId,
+      name: cleanName,
+      city: cleanCity,
+      created_at: new Date().toISOString(),
+    }, 'admin'),
     error: null,
   }
 }

@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 
 export default function WorkspaceSetup() {
   const navigate = useNavigate()
-  const { isAuthenticated, hasWorkspace, setupWorkspace, workspaceLoading } = useAuth()
+  const { isAuthenticated, hasWorkspace, setupWorkspace } = useAuth()
   const [form, setForm] = useState({ name: '', city: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -28,7 +28,7 @@ export default function WorkspaceSetup() {
     setSubmitting(false)
 
     if (workspaceError) {
-      setError(workspaceError.message)
+      setError(workspaceError.message || 'Workspace could not be created. Please try again.')
       return
     }
 
@@ -61,19 +61,19 @@ export default function WorkspaceSetup() {
           <label className="mt-7 block text-sm font-bold text-ink" htmlFor="name">NGO/Foundation name</label>
           <div className="mt-2 flex items-center gap-3 rounded-2xl border border-green-100 bg-white px-4 py-3">
             <Building2 size={18} className="text-leaf" />
-            <input id="name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full bg-transparent text-sm outline-none" placeholder="Example: Niswarth Foundation" />
+            <input id="name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full bg-transparent text-sm outline-none" placeholder="Example: Niswarth Foundation" disabled={submitting} />
           </div>
 
           <label className="mt-5 block text-sm font-bold text-ink" htmlFor="city">City</label>
           <div className="mt-2 flex items-center gap-3 rounded-2xl border border-green-100 bg-white px-4 py-3">
             <MapPin size={18} className="text-leaf" />
-            <input id="city" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="w-full bg-transparent text-sm outline-none" placeholder="Example: Pune" />
+            <input id="city" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="w-full bg-transparent text-sm outline-none" placeholder="Example: Pune" disabled={submitting} />
           </div>
 
           {error && <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{error}</p>}
 
-          <Button type="submit" disabled={submitting || workspaceLoading} className="mt-7 w-full disabled:cursor-not-allowed disabled:opacity-60">
-            {submitting || workspaceLoading ? 'Creating workspace...' : 'Create Workspace'}
+          <Button type="submit" disabled={submitting} className="mt-7 w-full disabled:cursor-not-allowed disabled:opacity-60">
+            {submitting ? 'Creating workspace...' : 'Create Workspace'}
           </Button>
         </form>
       </section>

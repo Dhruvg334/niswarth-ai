@@ -1,17 +1,18 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { getCurrentSession, onAuthStateChange, signInWithEmail, signOutUser, signUpWithEmail } from '../services/authService.js'
 import { createWorkspace, getUserWorkspace } from '../services/workspaceService.js'
 import { isSupabaseConfigured } from '../lib/supabaseClient.js'
 
 const AuthContext = createContext(null)
 
-function withTimeout(promise, timeoutMs = 12000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error('Workspace lookup timed out. Please refresh and try again.')), timeoutMs)
-    }),
-  ])
+function withTimeout(promise, timeoutMs = 9000, message = 'The request took too long. Please try again.') {
+  let timeoutId
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+  })
+
+  return Promise.race([promise, timeoutPromise]).finally(() => window.clearTimeout(timeoutId))
 }
 
 export function AuthProvider({ children }) {
@@ -21,73 +22,120 @@ export function AuthProvider({ children }) {
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [error, setError] = useState('')
 
-  async function loadWorkspace(userId) {
+  const activeRef = useRef(true)
+  const sessionRef = useRef(null)
+  const workspaceRef = useRef(null)
+  const workspaceRequestIdRef = useRef(0)
+
+  const loadWorkspace = useCallback(async (userId, options = {}) => {
+    const { preserveExisting = true, showLoading = true } = options
+
     if (!userId || !isSupabaseConfigured) {
+      workspaceRef.current = null
       setWorkspace(null)
       return null
     }
 
-    setWorkspaceLoading(true)
+    const requestId = workspaceRequestIdRef.current + 1
+    workspaceRequestIdRef.current = requestId
+
+    if (showLoading && !workspaceRef.current) setWorkspaceLoading(true)
+
     try {
-      const { workspace: loadedWorkspace, error: workspaceError } = await withTimeout(getUserWorkspace(userId))
+      const { workspace: loadedWorkspace, error: workspaceError } = await withTimeout(
+        getUserWorkspace(userId),
+        9000,
+        'Workspace lookup is taking longer than expected. Please refresh and try again.',
+      )
+
+      if (!activeRef.current || workspaceRequestIdRef.current !== requestId) return workspaceRef.current
 
       if (workspaceError) {
         setError(workspaceError.message)
-        setWorkspace(null)
+        if (!preserveExisting) {
+          workspaceRef.current = null
+          setWorkspace(null)
+        }
         return null
       }
 
+      workspaceRef.current = loadedWorkspace
       setWorkspace(loadedWorkspace)
       return loadedWorkspace
     } catch (loadError) {
+      if (!activeRef.current || workspaceRequestIdRef.current !== requestId) return workspaceRef.current
       setError(loadError.message || 'Unable to load workspace.')
-      setWorkspace(null)
+      if (!preserveExisting) {
+        workspaceRef.current = null
+        setWorkspace(null)
+      }
       return null
     } finally {
-      setWorkspaceLoading(false)
+      if (activeRef.current && workspaceRequestIdRef.current === requestId) {
+        setWorkspaceLoading(false)
+      }
     }
-  }
+  }, [])
 
   useEffect(() => {
-    let active = true
+    activeRef.current = true
 
     async function initializeAuth() {
       setLoading(true)
       try {
         const { session: currentSession, error: sessionError } = await getCurrentSession()
-        if (!active) return
+        if (!activeRef.current) return
 
         if (sessionError) setError(sessionError.message)
+
+        sessionRef.current = currentSession
         setSession(currentSession)
 
         if (currentSession?.user?.id) {
-          await loadWorkspace(currentSession.user.id)
+          await loadWorkspace(currentSession.user.id, { preserveExisting: false })
         } else {
+          workspaceRef.current = null
           setWorkspace(null)
         }
       } finally {
-        if (active) setLoading(false)
+        if (activeRef.current) setLoading(false)
       }
     }
 
     initializeAuth()
 
-    const subscription = onAuthStateChange(async (nextSession) => {
+    const subscription = onAuthStateChange(({ event, session: nextSession }) => {
+      const previousUserId = sessionRef.current?.user?.id || null
+      const nextUserId = nextSession?.user?.id || null
+
+      sessionRef.current = nextSession
       setSession(nextSession)
       setError('')
-      if (nextSession?.user?.id) {
-        await loadWorkspace(nextSession.user.id)
-      } else {
+
+      if (!nextUserId) {
+        workspaceRequestIdRef.current += 1
+        workspaceRef.current = null
         setWorkspace(null)
         setWorkspaceLoading(false)
+        return
+      }
+
+      const userChanged = previousUserId && previousUserId !== nextUserId
+      const needsWorkspaceLoad = userChanged || !workspaceRef.current
+
+      if (needsWorkspaceLoad && event !== 'TOKEN_REFRESHED') {
+        window.setTimeout(() => {
+          if (!activeRef.current) return
+          loadWorkspace(nextUserId, { preserveExisting: !userChanged, showLoading: !workspaceRef.current })
+        }, 0)
       }
     })
 
     return () => {
-      active = false
+      activeRef.current = false
       subscription?.unsubscribe?.()
     }
-  }, [])
+  }, [loadWorkspace])
 
   async function signUp({ email, password, fullName }) {
     setError('')
@@ -106,8 +154,14 @@ export function AuthProvider({ children }) {
       setError(signInError.message)
       return { data, error: signInError }
     }
+
+    sessionRef.current = data.session
     setSession(data.session)
-    if (data.session?.user?.id) await loadWorkspace(data.session.user.id)
+
+    if (data.session?.user?.id) {
+      await loadWorkspace(data.session.user.id, { preserveExisting: false })
+    }
+
     return { data, error: null }
   }
 
@@ -118,6 +172,10 @@ export function AuthProvider({ children }) {
       setError(signOutError.message)
       return { error: signOutError }
     }
+
+    workspaceRequestIdRef.current += 1
+    sessionRef.current = null
+    workspaceRef.current = null
     setSession(null)
     setWorkspace(null)
     setWorkspaceLoading(false)
@@ -127,13 +185,30 @@ export function AuthProvider({ children }) {
   async function setupWorkspace({ name, city }) {
     setError('')
     setWorkspaceLoading(true)
+
     try {
-      const { workspace: createdWorkspace, error: workspaceError } = await withTimeout(createWorkspace({ name, city }), 15000)
+      const { workspace: createdWorkspace, error: workspaceError } = await withTimeout(
+        createWorkspace({ name, city }),
+        12000,
+        'Workspace creation is taking longer than expected. Please try again.',
+      )
+
       if (workspaceError) {
         setError(workspaceError.message)
         return { workspace: null, error: workspaceError }
       }
+
+      workspaceRequestIdRef.current += 1
+      workspaceRef.current = createdWorkspace
       setWorkspace(createdWorkspace)
+
+      if (sessionRef.current?.user?.id) {
+        window.setTimeout(() => {
+          if (!activeRef.current) return
+          loadWorkspace(sessionRef.current.user.id, { preserveExisting: true, showLoading: false })
+        }, 0)
+      }
+
       return { workspace: createdWorkspace, error: null }
     } catch (workspaceError) {
       setError(workspaceError.message || 'Unable to create workspace.')
@@ -144,8 +219,8 @@ export function AuthProvider({ children }) {
   }
 
   async function refreshWorkspace() {
-    if (!session?.user?.id) return null
-    return loadWorkspace(session.user.id)
+    if (!sessionRef.current?.user?.id) return null
+    return loadWorkspace(sessionRef.current.user.id, { preserveExisting: true })
   }
 
   const value = useMemo(() => ({
