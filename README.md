@@ -1,201 +1,235 @@
 # Niswarth AI
 
-**AI-assisted NGO workflow and impact reporting platform**
+**Niswarth AI** is a full-stack AI workflow platform for NGO campaign coordination, volunteer assignment, field update collection, and human-reviewed impact reporting.
 
-Niswarth AI is a frontend product prototype designed for NGOs, foundations, and social-impact teams. It demonstrates how volunteer coordination, campaign tracking, field updates, and AI-assisted impact reporting can work together in a workflow-focused platform.
+The product is built around a practical social-impact workflow: NGOs often coordinate work through scattered chats, spreadsheets, field notes, and manual reports. Niswarth AI brings those pieces into one workspace and uses AI to help draft impact reports from field evidence, while keeping humans in control before anything is approved.
 
-The word **Niswarth** means **selfless**, reflecting the spirit of people who devote themselves to social impact work.
-
-## Live Deployment
-
-[Niswarth AI Live Project](https://niswarth-ai.vercel.app/)
+**Live demo:** https://niswarth-ai.vercel.app/
 
 ---
 
-## Project Overview
+## What it does
 
-Many NGOs manage their work through scattered WhatsApp messages, spreadsheets, paper notes, and manual reports. This often makes it difficult to track volunteers, collect field updates, coordinate events, and prepare clear impact summaries.
-
-Niswarth AI explores a cleaner workflow where NGOs can:
-
-- Coordinate volunteers
-- Manage campaigns
-- Track field updates
-- View campaign-level metrics
-- Generate AI-assisted impact report drafts
-- Keep humans in control before publishing or sharing reports
-
-This project was developed as part of a web development internship task focused on AI-powered website generation, user experience thinking, and practical product structure.
-
----
-
-## Key Features
-
-### Multi-page Website Structure
-
-The project includes the following pages:
-
-- Home
-- Workflow Dashboard
-- Use Cases
-- About
-- Contact
-
-### Interactive Workflow Dashboard
-
-The dashboard demonstrates how an NGO campaign workflow could be managed.
-
-It includes:
-
-- Campaign selector
-- Campaign overview
-- Volunteer details
-- Field updates
-- Workflow metrics
-- Workflow quality indicators
-- AI impact report draft area
-- Human review and approval status
-
-### Backend-Connected Campaign Workflow
-
-The dashboard connects with Supabase for campaign, field update, and report records. It also keeps a local fallback path so the interface remains viewable if environment variables are not configured.
-
-The workflow supports:
-
-- Creating campaign records
-- Adding field updates to selected campaigns
-- Saving AI-assisted report drafts
-- Marking reports as human-reviewed
-- Refreshing backend records from the dashboard
-
-### Volunteer Management and Assignment
-
-The dashboard supports a volunteer coordination loop connected to Supabase. NGO teams can create reusable volunteer profiles and assign existing volunteers to selected campaigns with a clear assignment role.
-
-The workflow supports:
-
-- Creating volunteer profiles
-- Tracking volunteer role, city, and availability
-- Assigning volunteers to campaigns
-- Avoiding duplicate assignments for the same campaign
-- Displaying assigned volunteers inside the campaign dashboard
-- Showing volunteer coordination metrics such as total volunteers, assigned volunteers, unassigned volunteers, and campaign-specific assignments
-
-### Campaign Types
-
-The dashboard includes realistic campaign types:
-
-- Education Drive
-- Animal Welfare Drive
-- Environment Drive
-
-Each campaign has its own field updates, volunteers, events, and reporting context.
-
-### AI-Assisted Impact Report Draft
-
-The project includes an AI-assisted report generation flow.
-
-Users can generate an impact report draft based on selected campaign updates. The AI output is positioned as human-reviewed, not automatically final.
-
-> AI-generated drafts may contain inaccuracies. Human review is required before sharing.
-
-### Gemini 2.5 Flash Report Generation
-
-The report workflow now uses a Vercel serverless function to request report drafts from Gemini 2.5 Flash. The API key is kept server-side through the `GEMINI_API_KEY` environment variable and is not exposed to the browser.
-
-If the AI request fails or the server-side key is not configured, the interface falls back to a local structured draft generator and clearly tells the user to review the fallback draft carefully.
-
-### Use Cases Page
-
-The Use Cases page explains how the platform can support different types of social-impact work, including:
-
-- Education drives
-- Animal welfare campaigns
-- Environment and plantation drives
-
-### Contact Workflow Form
-
-The contact page includes a workflow-focused form for NGOs and foundations.
-
-Fields include:
-
-- Name
-- NGO/Foundation name
-- City
-- Number of volunteers
-- Campaign type
-- Message
-
----
-
-## Tech Stack
-
-- React
-- Vite
-- Tailwind CSS
-- Supabase
-- Vercel Serverless Functions
-- Gemini 2.5 Flash API
-- React Router
-- Lucide React
-- JavaScript
-- HTML
-- CSS
-
----
-
-## Project Architecture
+Niswarth AI supports an NGO workspace flow:
 
 ```text
-niswarth-ai/
-├── api/
-│   └── generate-report.js
-├── database/
-├── public/
-├── src/
-│   ├── assets/
-│   ├── components/
-│   │   ├── layout/
-│   │   ├── common/
-│   │   ├── landing/
-│   │   ├── forms/
-│   │   └── dashboard/
-│   ├── data/
-│   ├── lib/
-│   ├── pages/
-│   ├── services/
-│   ├── utils/
-│   ├── App.jsx
-│   ├── main.jsx
-│   └── index.css
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-├── postcss.config.js
-└── README.md
+Account signup
+→ NGO workspace creation
+→ Campaign setup
+→ Volunteer assignment
+→ Field update collection
+→ AI-assisted impact report draft
+→ Human review
+→ Approval / revision
+→ Report history
+```
+
+Core capabilities:
+
+- Email/password authentication with Supabase Auth
+- Organization-scoped NGO workspaces
+- Role-aware dashboard experience
+- Campaign creation and deletion
+- Volunteer profile creation and campaign assignment
+- Field update collection per campaign
+- Gemini 2.5 Flash report generation through a server-side Vercel API route
+- Local fallback report generator when AI generation fails
+- Editable report drafts with human review, approval, and revision flow
+- Report history and workflow quality indicators
+- Organization-scoped Row Level Security policies in Supabase
+- CI workflow for tests and production build validation
+
+---
+
+## Why this exists
+
+NGO teams often need to prove impact, but the raw material for that impact is scattered across volunteers, field visits, campaign updates, photos, informal messages, and manual reports.
+
+Niswarth AI focuses on one narrow problem:
+
+> Convert campaign activity and field updates into structured, reviewable impact reporting without removing human judgment.
+
+The system is intentionally designed around human-reviewed AI. AI drafts are treated as working drafts, not final claims.
+
+---
+
+## Engineering highlights
+
+### Full-stack workflow architecture
+
+The application is not a static demo. It uses a real backend workflow:
+
+- React + Vite frontend
+- Supabase Auth for account access
+- Supabase Postgres for campaign, volunteer, update, and report records
+- Supabase RLS for organization-scoped data access
+- Vercel serverless function for Gemini report generation
+- GitHub Actions CI for test/build validation
+
+### Organization-scoped access
+
+Each user creates or belongs to an NGO workspace. Campaigns, volunteers, field updates, and reports are linked to an organization, and database policies restrict access based on membership.
+
+This keeps the product closer to a real SaaS-style architecture instead of a shared public demo database.
+
+### Human-in-the-loop AI reporting
+
+AI-generated reports are not automatically treated as final. A report draft can be:
+
+- edited
+- saved
+- sent for review
+- approved
+- marked as needing revision
+
+The workflow is designed to support accountability and reduce unsupported claims.
+
+### Responsible fallback behavior
+
+If the Gemini API request fails, the app does not break. It prepares a structured local draft from available field updates and clearly informs the user that the AI service could not complete the request.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS |
+| Routing | React Router |
+| Backend / Database | Supabase Auth, Supabase Postgres |
+| Security | Supabase Row Level Security |
+| AI generation | Gemini 2.5 Flash via Vercel serverless function |
+| Deployment | Vercel |
+| Testing | Node test runner |
+| CI | GitHub Actions |
+| Icons | Lucide React |
+
+---
+
+## Architecture overview
+
+```text
+React UI
+  ↓
+Service layer
+  ├── Supabase services
+  │     ├── Auth
+  │     ├── Workspaces
+  │     ├── Campaigns
+  │     ├── Volunteers
+  │     ├── Field updates
+  │     └── Reports
+  │
+  └── AI report service
+        ↓
+        Vercel API route: /api/generate-report
+        ↓
+        Gemini 2.5 Flash
+
+Supabase Postgres
+  ├── organizations
+  ├── profiles
+  ├── organization_members
+  ├── campaigns
+  ├── volunteers
+  ├── campaign_volunteers
+  ├── field_updates
+  └── impact_reports
 ```
 
 ---
 
-## How to Run Locally
+## Data model
+
+The core database model is organized around NGO workspaces.
+
+| Table | Purpose |
+|---|---|
+| `profiles` | App-level user profile linked to Supabase Auth |
+| `organizations` | NGO/foundation workspace |
+| `organization_members` | User membership and role inside an organization |
+| `campaigns` | Campaign records under an organization |
+| `volunteers` | Reusable volunteer profiles |
+| `campaign_volunteers` | Volunteer-to-campaign assignments |
+| `field_updates` | Field notes and campaign updates |
+| `impact_reports` | AI-assisted drafts, edited reports, review status, and approval state |
+
+---
+
+## AI report workflow
+
+The report workflow follows a constrained generation path:
+
+1. User selects a campaign.
+2. System checks whether field updates exist.
+3. Frontend sends campaign context and updates to `/api/generate-report`.
+4. Serverless function calls Gemini 2.5 Flash using a server-side API key.
+5. Prompt instructs the model to use only provided evidence and avoid unsupported claims.
+6. Draft is returned to the dashboard.
+7. User edits and saves the draft.
+8. User sends it for review, approves it, or marks it for revision.
+9. Report history stores the review state.
+
+The Gemini API key is never exposed to the browser.
+
+---
+
+## Screenshots
+
+Screenshots will be added as the product UI stabilizes further. Recommended screenshots for this repository:
+
+| Screenshot | Purpose |
+|---|---|
+| Home page | Product positioning and landing page design |
+| Auth / workspace setup | Account and NGO workspace onboarding |
+| Dashboard overview | Campaign, volunteer, and workflow metrics |
+| AI report workspace | Editable AI draft and human review flow |
+| Report history | Review and approval trace |
+
+Planned path:
+
+```text
+screenshots/
+  home.png
+  workspace-setup.png
+  dashboard.png
+  ai-report-workspace.png
+  report-history.png
+```
+
+---
+
+## Local setup
 
 ### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Dhruvg334/niswarth-ai.git
-```
-
-### 2. Go inside the project folder
-
-```bash
 cd niswarth-ai
 ```
 
-### 3. Install dependencies
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
+
+### 3. Configure environment variables
+
+Create a `.env.local` file in the project root.
+
+```env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-publishable-key
+```
+
+For deployed AI generation, configure this in Vercel Project Settings → Environment Variables:
+
+```env
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+Do not prefix `GEMINI_API_KEY` with `VITE_`. It is a server-side secret used only by the Vercel API route.
 
 ### 4. Start the development server
 
@@ -203,166 +237,98 @@ npm install
 npm run dev
 ```
 
-### 5. Open the local preview
-
-Vite will show a local URL similar to:
+Open the local URL shown by Vite, usually:
 
 ```text
 http://localhost:5173
 ```
 
-Open it in your browser.
+---
 
-### Environment Variables
+## Database setup
 
-Create a `.env.local` file for local Supabase access:
+The Supabase database scripts are stored in `/database`.
 
-```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_publishable_key
+For a fresh Supabase project, run the SQL files in numerical order, with one important exception:
+
+```text
+01_schema.sql
+02_rls_policies_and_grants.sql
+03_seed_data.sql
+04_auth_org_foundation.sql
+06_auth_workspace_interim_policies.sql
+07_fix_workspace_starter_data_function.sql
+08_fix_authenticated_core_table_policies.sql
+09_admin_campaign_delete_policy.sql
+10_org_scoped_rls_hardening.sql
 ```
 
-For deployed AI generation, add this variable in Vercel Project Settings → Environment Variables:
+Do not run `05_org_scoped_rls_do_not_run_yet.sql`; it was kept as an intermediate migration reference and is superseded by the later hardening script.
 
-```env
-GEMINI_API_KEY=your_gemini_api_key
-```
+Use `11_rls_isolation_manual_test.sql` only for manual inspection and organization-isolation checks.
 
-`GEMINI_API_KEY` must not be prefixed with `VITE_` because it is a server-side secret used only by the Vercel API function.
+Supabase Auth should have the Email provider enabled for email/password signup.
 
 ---
 
-## Build Commands
-
-Create a production build:
+## Available scripts
 
 ```bash
-npm run build
-```
-
-Preview the production build locally:
-
-```bash
-npm run preview
+npm run dev       # start local development server
+npm run build     # create production build
+npm run preview   # preview production build locally
+npm test          # run core workflow tests
 ```
 
 ---
 
-## What This Project Demonstrates
+## Testing and CI
 
-This project demonstrates:
+The project includes tests for core logic around:
 
-- AI-assisted website ideation
-- Product-oriented website planning
-- React component-based structure
-- Multi-page frontend routing
-- Responsive UI design
-- Dashboard-style interface design
-- Supabase-backed data workflow
-- Service-layer based backend access
-- Simulated AI workflow
-- Human-in-the-loop product thinking
-- Reliability, observation, and workflow quality metrics
-- NGO-focused user experience design
-- Clean frontend project documentation
+- dashboard metrics
+- volunteer assignment counting
+- fallback report generation
+- API handler behavior for Gemini report generation
 
----
+GitHub Actions runs test and build checks on pull requests and pushes to `main`.
 
-## Responsible AI Positioning
+Manual QA is tracked in:
 
-Niswarth AI does not present AI-generated content as automatically final.
-
-The product concept follows a human-reviewed approach:
-
-1. Field updates are collected.
-2. AI assists in drafting an impact summary.
-3. A human reviews the draft.
-4. The final report is approved before sharing.
-
-This keeps the workflow practical, safer, and more appropriate for NGO communication.
+```text
+QA_CHECKLIST.md
+```
 
 ---
 
-## Current Scope
+## Current limitations
 
-The current version is a frontend product prototype.
+The project is functional, but there are still areas intentionally left for future hardening:
 
-It includes:
-
-- Static frontend pages
-- Interactive dashboard UI
-- Campaign switching
-- Gemini-backed AI report generation with local fallback
-- Human review UI
-- Responsive design
-
-It does not currently include:
-
-- Real backend
-- User authentication
-- Database storage
-- Real AI API integration
-- Live email or CRM submission
-
-These are planned for future versions.
+- Contact form submission is not connected yet; project discussion should currently happen through GitHub Issues.
+- Google OAuth is not enabled yet; authentication currently uses email/password.
+- Member invitation and role management UI are not implemented yet.
+- AI output is currently draft text, not structured JSON with evidence mapping.
+- Report export to PDF is not implemented yet.
+- Advanced agentic orchestration is planned for future work, but the current AI flow is a controlled report-generation workflow.
 
 ---
 
-## Future Improvements
+## Roadmap
 
-### Stage 3: Functional AI Workflow App
+Planned next improvements:
 
-Planned improvements:
-
-- Add Supabase or Firebase backend
-- Store real campaigns, volunteers, and field updates
-- Add form submission persistence
-- Add editable campaign data
-- Save generated reports
-- Add real dashboard metrics
-- Add authentication for NGO admins
-- Add AI generation logs and evaluation metrics
-- Add report editing before approval
-
-### Stage 4: Advanced Agentic AI System
-
-Possible long-term improvements:
-
-- Campaign planning assistant
-- Volunteer coordination assistant
-- Field update summarization agent
-- Report generation agent
-- Risk and missing-data flagging
-- Multi-agent workflow orchestration
-- Role-based access control
-- Audit logs for AI-assisted decisions
-- PDF report export
-- WhatsApp or email workflow integration
+- Connect the public contact form through a reliable submission mechanism
+- Add structured AI report output with evidence used, missing evidence, risk flags, and next actions
+- Add report evidence mapping from field updates
+- Add evaluation checks for hallucination risk and unsupported claims
+- Add member invitation and role management
+- Add PDF/report export
+- Improve performance through route-level code splitting if bundle size grows
+- Add deeper architecture documentation in `/docs`
 
 ---
 
-## Learning Outcomes
+## Repository support
 
-Through this project, I practiced:
-
-- Moving from a static website idea to a structured product prototype
-- Designing around a real user workflow
-- Creating reusable React components
-- Using mock data to simulate product behavior
-- Building an interactive dashboard experience
-- Thinking about responsible AI in social-impact contexts
-
----
-
-## Project Status
-
-**Current version:** Frontend product prototype  
-**Next planned step:** Backend persistence and real AI workflow integration
-
----
-
-## Author
-
-**Dhruv Gupta**
-
-GitHub: [Dhruvg334](https://github.com/Dhruvg334)
+For bugs, suggestions, or project discussion, use GitHub Issues.
