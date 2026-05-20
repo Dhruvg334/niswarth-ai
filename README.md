@@ -2,15 +2,23 @@
 
 **Niswarth AI** is a full-stack AI workflow platform for NGO campaign coordination, volunteer assignment, field update collection, and human-reviewed impact reporting.
 
-The product is built around a practical social-impact workflow: NGOs often coordinate work through scattered chats, spreadsheets, field notes, and manual reports. Niswarth AI brings those pieces into one workspace and uses AI to help draft impact reports from field evidence, while keeping humans in control before anything is approved.
+The product is built around a practical social-impact workflow: NGOs often coordinate work through scattered chats, spreadsheets, field notes, volunteer updates, and manual reports. Niswarth AI brings those pieces into one organization-scoped workspace and uses AI to help draft impact reports from field evidence, while keeping humans in control before anything is approved.
 
 **Live demo:** https://niswarth-ai.vercel.app/
 
 ---
 
+## Product status
+
+Niswarth AI is an active full-stack product build. The current version includes working authentication, organization-scoped workspaces, Supabase persistence, campaign and volunteer workflows, Gemini-assisted report drafting, Formspree-powered contact submission, and CI validation.
+
+It is not positioned as a finished production SaaS. The next engineering focus areas are structured AI output, evidence mapping, audit trails, member management, and deeper documentation.
+
+---
+
 ## What it does
 
-Niswarth AI supports an NGO workspace flow:
+Niswarth AI supports this NGO workflow:
 
 ```text
 Account signup
@@ -24,12 +32,12 @@ Account signup
 → Report history
 ```
 
-Core capabilities:
+Implemented capabilities:
 
 - Email/password authentication with Supabase Auth
 - Organization-scoped NGO workspaces
 - Role-aware dashboard experience
-- Campaign creation and deletion
+- Campaign creation and admin deletion
 - Volunteer profile creation and campaign assignment
 - Field update collection per campaign
 - Gemini 2.5 Flash report generation through a server-side Vercel API route
@@ -37,13 +45,14 @@ Core capabilities:
 - Editable report drafts with human review, approval, and revision flow
 - Report history and workflow quality indicators
 - Organization-scoped Row Level Security policies in Supabase
+- Public contact form connected through Formspree
 - CI workflow for tests and production build validation
 
 ---
 
 ## Why this exists
 
-NGO teams often need to prove impact, but the raw material for that impact is scattered across volunteers, field visits, campaign updates, photos, informal messages, and manual reports.
+NGO teams often need to communicate impact, but the raw material for that impact is scattered across volunteers, field visits, campaign updates, photos, informal messages, and manual reports.
 
 Niswarth AI focuses on one narrow problem:
 
@@ -57,24 +66,25 @@ The system is intentionally designed around human-reviewed AI. AI drafts are tre
 
 ### Full-stack workflow architecture
 
-The application is not a static demo. It uses a real backend workflow:
+The application uses a real backend workflow rather than static mock data:
 
 - React + Vite frontend
 - Supabase Auth for account access
-- Supabase Postgres for campaign, volunteer, update, and report records
-- Supabase RLS for organization-scoped data access
+- Supabase Postgres for campaign, volunteer, field update, and report records
+- Supabase RLS for organization-scoped access control
 - Vercel serverless function for Gemini report generation
+- Formspree endpoint for public contact submissions
 - GitHub Actions CI for test/build validation
 
 ### Organization-scoped access
 
-Each user creates or belongs to an NGO workspace. Campaigns, volunteers, field updates, and reports are linked to an organization, and database policies restrict access based on membership.
+Each user creates or belongs to an NGO workspace. Campaigns, volunteers, field updates, and reports are linked to an organization, and database policies restrict access based on organization membership.
 
-This keeps the product closer to a real SaaS-style architecture instead of a shared public demo database.
+This keeps the project closer to a real SaaS-style architecture instead of a shared public demo database.
 
 ### Human-in-the-loop AI reporting
 
-AI-generated reports are not automatically treated as final. A report draft can be:
+AI-generated reports are not treated as final. A report draft can be:
 
 - edited
 - saved
@@ -82,7 +92,7 @@ AI-generated reports are not automatically treated as final. A report draft can 
 - approved
 - marked as needing revision
 
-The workflow is designed to support accountability and reduce unsupported claims.
+This workflow is designed to support accountability and reduce unsupported impact claims.
 
 ### Responsible fallback behavior
 
@@ -99,6 +109,7 @@ If the Gemini API request fails, the app does not break. It prepares a structure
 | Backend / Database | Supabase Auth, Supabase Postgres |
 | Security | Supabase Row Level Security |
 | AI generation | Gemini 2.5 Flash via Vercel serverless function |
+| Contact form | Formspree endpoint |
 | Deployment | Vercel |
 | Testing | Node test runner |
 | CI | GitHub Actions |
@@ -120,11 +131,15 @@ Service layer
   │     ├── Field updates
   │     └── Reports
   │
-  └── AI report service
+  ├── AI report service
+  │     ↓
+  │     Vercel API route: /api/generate-report
+  │     ↓
+  │     Gemini 2.5 Flash
+  │
+  └── Contact service
         ↓
-        Vercel API route: /api/generate-report
-        ↓
-        Gemini 2.5 Flash
+        Formspree endpoint
 
 Supabase Postgres
   ├── organizations
@@ -141,7 +156,7 @@ Supabase Postgres
 
 ## Data model
 
-The core database model is organized around NGO workspaces.
+The database model is organized around NGO workspaces.
 
 | Table | Purpose |
 |---|---|
@@ -176,7 +191,9 @@ The Gemini API key is never exposed to the browser.
 
 ## Screenshots
 
-Screenshots will be added as the product UI stabilizes further. Recommended screenshots for this repository:
+Screenshots will be added as the product UI stabilizes further.
+
+Recommended screenshots for this repository:
 
 | Screenshot | Purpose |
 |---|---|
@@ -185,6 +202,7 @@ Screenshots will be added as the product UI stabilizes further. Recommended scre
 | Dashboard overview | Campaign, volunteer, and workflow metrics |
 | AI report workspace | Editable AI draft and human review flow |
 | Report history | Review and approval trace |
+| Contact page | Public inquiry path |
 
 Planned path:
 
@@ -195,6 +213,7 @@ screenshots/
   dashboard.png
   ai-report-workspace.png
   report-history.png
+  contact.png
 ```
 
 ---
@@ -230,6 +249,8 @@ GEMINI_API_KEY=your-gemini-api-key
 ```
 
 Do not prefix `GEMINI_API_KEY` with `VITE_`. It is a server-side secret used only by the Vercel API route.
+
+The Formspree endpoint is currently configured in the contact service file. It is not a server-side secret.
 
 ### 4. Start the development server
 
@@ -303,12 +324,12 @@ QA_CHECKLIST.md
 
 ## Current limitations
 
-The project is functional, but there are still areas intentionally left for future hardening:
+The current version is functional, but these areas are intentionally left for future hardening:
 
-- Contact form submission is not connected yet; project discussion should currently happen through GitHub Issues.
 - Google OAuth is not enabled yet; authentication currently uses email/password.
 - Member invitation and role management UI are not implemented yet.
-- AI output is currently draft text, not structured JSON with evidence mapping.
+- AI output is currently draft text, not structured JSON with explicit evidence mapping.
+- AI prompt inputs, model metadata, evidence IDs, and generation traces are not yet stored as a dedicated audit trail.
 - Report export to PDF is not implemented yet.
 - Advanced agentic orchestration is planned for future work, but the current AI flow is a controlled report-generation workflow.
 
@@ -318,14 +339,14 @@ The project is functional, but there are still areas intentionally left for futu
 
 Planned next improvements:
 
-- Connect the public contact form through a reliable submission mechanism
 - Add structured AI report output with evidence used, missing evidence, risk flags, and next actions
 - Add report evidence mapping from field updates
+- Add AI generation audit logs and report version history
 - Add evaluation checks for hallucination risk and unsupported claims
 - Add member invitation and role management
 - Add PDF/report export
+- Add compact architecture documentation in `/docs`
 - Improve performance through route-level code splitting if bundle size grows
-- Add deeper architecture documentation in `/docs`
 
 ---
 
