@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Copy, RotateCcw, Save, Send, Sparkles } from 'lucide-react'
 import Button from '../common/Button.jsx'
-import { generateImpactReport, normalizeReportMetadata } from '../../utils/generateImpactReport.js'
+import { generateImpactReport } from '../../utils/generateImpactReport.js'
 import { generateAiImpactReport } from '../../services/aiReportService.js'
 import { saveImpactReportDraft, updateImpactReportDraft, updateImpactReportStatus } from '../../services/reportService.js'
 
@@ -19,6 +19,13 @@ const statusStyles = {
   needs_revision: 'bg-amber-100 text-amber-800',
 }
 
+const insightCardStyles = {
+  evidence: 'border-emerald-100 bg-emerald-50/45 text-slate-700',
+  missing: 'border-amber-200 bg-amber-50/55 text-amber-900',
+  caution: 'border-orange-200 bg-orange-50/50 text-orange-900',
+  actions: 'border-emerald-100 bg-white text-slate-700',
+}
+
 function FeedbackMessage({ type, message }) {
   if (!message) return null
   const isError = type === 'error'
@@ -30,45 +37,46 @@ function FeedbackMessage({ type, message }) {
   )
 }
 
-function CompactList({ title, items = [], emptyText, tone = 'green' }) {
-  const visibleItems = items.slice(0, 3)
-  const toneClass = tone === 'amber'
-    ? 'border-amber-100 bg-amber-50/55 text-amber-900'
-    : tone === 'slate'
-      ? 'border-slate-100 bg-slate-50 text-slate-700'
-      : 'border-green-100 bg-green-50/55 text-slate-700'
+function normalizeList(list) {
+  return Array.isArray(list) ? list.filter(Boolean).slice(0, 3) : []
+}
 
+function getEvidenceLabel(item) {
+  if (typeof item === 'string') return item
+  return item?.note || item?.summary || item?.text || item?.field_update_id || 'Field update used'
+}
+
+function InsightCard({ title, items, variant = 'evidence', emptyText }) {
+  const safeItems = normalizeList(items)
   return (
-    <div className={`rounded-2xl border p-4 ${toneClass}`}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-extrabold text-ink">{title}</p>
-        {items.length > 3 && <span className="text-xs font-bold text-slate-500">+{items.length - 3}</span>}
-      </div>
-      {visibleItems.length ? (
+    <div className={`rounded-3xl border p-5 ${insightCardStyles[variant] || insightCardStyles.evidence}`}>
+      <p className="text-sm font-extrabold text-ink">{title}</p>
+      {safeItems.length ? (
         <ul className="mt-3 space-y-2 text-sm leading-6">
-          {visibleItems.map((item, index) => (
+          {safeItems.map((item, index) => (
             <li key={`${title}-${index}`} className="flex gap-2">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-60" />
-              <span>{typeof item === 'string' ? item : item.note}</span>
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-55" />
+              <span>{getEvidenceLabel(item)}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-3 text-sm leading-6 text-slate-500">{emptyText}</p>
+        <p className="mt-3 text-sm leading-6 opacity-75">{emptyText}</p>
       )}
     </div>
   )
 }
 
-function getReportMetadata(report) {
-  const metadata = normalizeReportMetadata(report)
+function buildReportMetadata(report) {
+  const nextActions = report?.nextActions || report?.suggestedActions || []
+
   return {
-    evidenceUsed: metadata.evidenceUsed,
-    missingEvidence: metadata.missingEvidence,
-    riskFlags: metadata.riskFlags,
-    nextActions: metadata.nextActions,
-    aiModel: metadata.aiModel,
-    generationSource: metadata.generationSource,
+    evidenceUsed: report?.evidenceUsed || [],
+    missingEvidence: report?.missingEvidence || [],
+    riskFlags: report?.riskFlags || [],
+    nextActions,
+    aiModel: report?.aiModel || null,
+    generationSource: report?.generationSource || null,
   }
 }
 
@@ -89,21 +97,17 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
   }
 
   async function saveGeneratedReport(generatedReport) {
-    if (!campaign.dbBacked) return
+    if (!campaign.dbBacked) return null
 
-    const metadata = getReportMetadata(generatedReport)
+    const metadata = buildReportMetadata(generatedReport)
+
     setSaving(true)
     const { report: savedReport, error } = await saveImpactReportDraft({
       organizationId,
       campaignId: campaign.id,
       draftText: generatedReport.summary,
       editedText: generatedReport.summary,
-      evidenceUsed: metadata.evidenceUsed,
-      missingEvidence: metadata.missingEvidence,
-      riskFlags: metadata.riskFlags,
-      nextActions: metadata.nextActions,
-      aiModel: metadata.aiModel,
-      generationSource: metadata.generationSource,
+      ...metadata,
     })
     setSaving(false)
 
@@ -111,9 +115,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
       throw error
     }
 
-    if (savedReport?.id) {
-      setSavedReportId(savedReport.id)
-    }
+    return savedReport
   }
 
   async function handleGenerate() {
@@ -137,11 +139,16 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
       setDraftText(generatedReport.summary)
       setSuccessMessage('AI draft created. Review and edit it before moving it forward.')
 
-      try {
-        await saveGeneratedReport(generatedReport)
-        if (campaign.dbBacked) setSuccessMessage('AI draft created and saved. Review and edit it before moving it forward.')
-      } catch {
-        setErrorMessage('The AI draft was created, but saving it to the database failed. Check Supabase table policies and environment variables.')
+      if (campaign.dbBacked) {
+        try {
+          const savedReport = await saveGeneratedReport(generatedReport)
+          if (savedReport?.id) {
+            setSavedReportId(savedReport.id)
+            setSuccessMessage('AI draft created and saved. Review and edit it before moving it forward.')
+          }
+        } catch {
+          setErrorMessage('The AI draft was created, but saving it to the database failed. Check Supabase table policies and environment variables.')
+        }
       }
     } catch {
       const fallbackReport = generateImpactReport(campaign)
@@ -149,10 +156,15 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
       setDraftText(fallbackReport.summary)
       setErrorMessage('The AI service could not complete the request, so Niswarth prepared a structured draft from the available field updates. Please review it carefully before sharing.')
 
-      try {
-        await saveGeneratedReport(fallbackReport)
-      } catch {
-        setErrorMessage('The AI service could not complete the request. A structured draft was prepared locally, but saving it to the database failed.')
+      if (campaign.dbBacked) {
+        try {
+          const savedReport = await saveGeneratedReport(fallbackReport)
+          if (savedReport?.id) {
+            setSavedReportId(savedReport.id)
+          }
+        } catch {
+          setErrorMessage('The AI service could not complete the request. A structured draft was prepared locally, but saving it to the database failed.')
+        }
       }
     } finally {
       setLoading(false)
@@ -235,7 +247,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
 
   const canGenerate = Boolean(campaign?.updates?.length) && !loading && !saving
   const isFinalApproved = reportStatus === 'approved'
-  const metadata = report ? getReportMetadata(report) : null
+  const metadata = report ? buildReportMetadata(report) : null
 
   return (
     <div className="premium-card rounded-[2rem] p-6 sm:p-8 lg:p-9">
@@ -244,7 +256,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
           <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-leaf">Human-reviewed reporting</p>
           <h2 className="mt-3 display-font text-3xl font-extrabold text-ink sm:text-4xl">AI impact report workspace</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-            Create a field-backed draft, review the evidence behind it, and approve only after a human check.
+            Turn field updates into a clear draft, verify the evidence, and move the report through human review.
           </p>
         </div>
         <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
@@ -253,7 +265,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
       </div>
 
       <div className="mt-7 rounded-[1.5rem] border border-green-100 bg-green-50/55 p-5 sm:p-6">
-        {loading && <p className="text-sm font-semibold text-forest">Reading field updates and preparing a review-ready draft...</p>}
+        {loading && <p className="text-sm font-semibold text-forest">Reading field updates and preparing a human-review draft...</p>}
         {saving && <p className="mt-3 text-xs font-bold text-forest">Saving workflow changes...</p>}
         {!loading && !report && (
           <div className="rounded-2xl bg-white/85 p-5 text-sm leading-7 text-slate-600">
@@ -273,7 +285,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
                   <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-leaf">Editable report draft</p>
                   <h3 className="mt-2 display-font text-2xl font-extrabold text-ink">{report.title}</h3>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Keep the language clear and remove anything not supported by field updates.
+                    Review the draft and keep only the details supported by field updates.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -293,20 +305,18 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
                 className="mt-5 min-h-[260px] w-full rounded-2xl border border-green-100 bg-green-50/35 p-5 text-base leading-8 text-slate-700 outline-none transition focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:bg-slate-50 disabled:text-slate-500"
               />
 
-              {metadata && (
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <CompactList title="Evidence used" items={metadata.evidenceUsed} emptyText="No evidence mapping was returned." />
-                  <CompactList title="Missing info" items={metadata.missingEvidence} emptyText="No major gaps flagged." tone="amber" />
-                  <CompactList title="Review cautions" items={metadata.riskFlags} emptyText="No specific cautions flagged." tone="amber" />
-                  <CompactList title="Next steps" items={metadata.nextActions} emptyText="No next actions suggested." tone="slate" />
-                </div>
-              )}
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <InsightCard title="Evidence used" items={metadata.evidenceUsed} variant="evidence" emptyText="No evidence items were returned." />
+                <InsightCard title="Missing info" items={metadata.missingEvidence} variant="missing" emptyText="No major missing details flagged." />
+                <InsightCard title="Review cautions" items={metadata.riskFlags} variant="caution" emptyText="No specific cautions flagged." />
+                <InsightCard title="Next steps" items={metadata.nextActions} variant="actions" emptyText="No next steps suggested." />
+              </div>
             </section>
 
             <section className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-soft sm:p-6">
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <div className="rounded-2xl bg-green-50/60 p-4 text-xs leading-5 text-slate-600">
-                  <span className="font-extrabold text-forest">Human review required.</span> {report.disclaimer}
+              <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="rounded-2xl border border-green-100 bg-green-50/45 p-4 text-sm leading-6 text-slate-600">
+                  <span className="font-extrabold text-forest">Human review required.</span> Review this draft before sharing externally. The AI can help organize evidence, but approval stays with the team.
                 </div>
 
                 <div>

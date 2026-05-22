@@ -8,7 +8,6 @@ function createMockResponse() {
     headers: {},
     payload: null,
     setHeader(name, value) {
-      this.headers[name] = name
       this.headers[name] = value
     },
     status(code) {
@@ -57,7 +56,7 @@ test('generate-report API rejects report generation without field updates', asyn
   else delete process.env.GEMINI_API_KEY
 })
 
-test('generate-report API returns structured Gemini report when Gemini succeeds', async () => {
+test('generate-report API returns structured Gemini draft when Gemini succeeds', async () => {
   const previousKey = process.env.GEMINI_API_KEY
   const previousFetch = globalThis.fetch
   process.env.GEMINI_API_KEY = 'test-key'
@@ -74,15 +73,13 @@ test('generate-report API returns structured Gemini report when Gemini succeeds'
               {
                 text: JSON.stringify({
                   title: 'Weekend Learning Support Impact Draft',
-                  summary: 'Weekend Learning Support is active in Pune and uses the available field updates as the basis for this draft. Students attended the session and volunteers distributed stationery kits. The coordinator should verify attendance, locations, and privacy-sensitive details before external sharing.',
-                  evidence_used: [
-                    { field_update_id: 'u1', note: 'Used attendance note from the field update.' },
-                  ],
-                  missing_evidence: ['Beneficiary feedback is missing.'],
+                  summary: 'This is a complete report draft based only on the provided field evidence. The campaign team recorded a learning support session in Pune and noted student attendance. The coordinator should verify all details before sharing externally.',
+                  evidence_used: [{ field_update_id: 'u1', note: 'Students attended the session.' }],
+                  missing_evidence: ['Beneficiary feedback is not available yet.'],
                   risk_flags: ['Do not claim learning improvement without assessment data.'],
-                  next_actions: ['Collect one volunteer observation.'],
+                  next_actions: ['Verify attendance count before approval.'],
                   review_required: true,
-                  confidence: 78,
+                  confidence: 76,
                 }),
               },
             ],
@@ -109,14 +106,14 @@ test('generate-report API returns structured Gemini report when Gemini succeeds'
   }, res)
 
   assert.equal(res.statusCode, 200)
-  assert.match(res.payload.summary, /Students attended/)
+  assert.match(res.payload.summary, /complete report draft/i)
   assert.equal(res.payload.title, 'Weekend Learning Support Impact Draft')
-  assert.equal(res.payload.evidenceUsed.length, 1)
-  assert.equal(res.payload.missingEvidence[0], 'Beneficiary feedback is missing.')
-  assert.equal(res.payload.riskFlags[0], 'Do not claim learning improvement without assessment data.')
-  assert.equal(res.payload.nextActions[0], 'Collect one volunteer observation.')
+  assert.equal(res.payload.generationSource, 'gemini')
   assert.equal(res.payload.aiModel, 'gemini-2.5-flash')
-  assert.equal(res.payload.generationSource, 'gemini-2.5-flash')
+  assert.equal(res.payload.evidenceUsed.length, 1)
+  assert.equal(res.payload.missingEvidence.length, 1)
+  assert.equal(res.payload.riskFlags.length, 1)
+  assert.equal(res.payload.nextActions.length, 1)
 
   globalThis.fetch = previousFetch
   if (previousKey) process.env.GEMINI_API_KEY = previousKey
@@ -156,7 +153,7 @@ test('generate-report API rejects invalid structured Gemini output', async () =>
   }, res)
 
   assert.equal(res.statusCode, 502)
-  assert.match(res.payload.error, /invalid structured output/i)
+  assert.match(res.payload.error, /invalid structured draft/i)
 
   globalThis.fetch = previousFetch
   if (previousKey) process.env.GEMINI_API_KEY = previousKey

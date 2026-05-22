@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
 
-function jsonArray(value) {
+function normalizeArray(value) {
   return Array.isArray(value) ? value : []
 }
 
@@ -13,8 +13,8 @@ export async function saveImpactReportDraft({
   missingEvidence = [],
   riskFlags = [],
   nextActions = [],
-  aiModel = '',
-  generationSource = 'unknown',
+  aiModel = null,
+  generationSource = null,
 }) {
   if (!isSupabaseConfigured) {
     return { report: null, error: null, skipped: true }
@@ -31,12 +31,12 @@ export async function saveImpactReportDraft({
       campaign_id: campaignId,
       draft_text: draftText,
       edited_text: editedText || draftText,
-      evidence_used: jsonArray(evidenceUsed),
-      missing_evidence: jsonArray(missingEvidence),
-      risk_flags: jsonArray(riskFlags),
-      next_actions: jsonArray(nextActions),
-      ai_model: aiModel || null,
-      generation_source: generationSource || 'unknown',
+      evidence_used: normalizeArray(evidenceUsed),
+      missing_evidence: normalizeArray(missingEvidence),
+      risk_flags: normalizeArray(riskFlags),
+      next_actions: normalizeArray(nextActions),
+      ai_model: aiModel,
+      generation_source: generationSource,
       status: 'draft',
     })
     .select('*')

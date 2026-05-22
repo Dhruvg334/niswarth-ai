@@ -6,100 +6,75 @@ function cleanText(value, maxLength = 1800) {
   return value.replace(/\s+/g, ' ').trim().slice(0, maxLength)
 }
 
-function cleanList(values, maxItems = 5, maxLength = 180) {
-  if (!Array.isArray(values)) return []
-  return values
+function safeArray(value) {
+  if (!Array.isArray(value)) return []
+  return value
     .map((item) => {
-      if (typeof item === 'string') return cleanText(item, maxLength)
-      if (item && typeof item === 'object') return cleanText(item.note || item.text || item.summary || item.label, maxLength)
+      if (typeof item === 'string') return item.trim()
+      if (item && typeof item === 'object') return item
       return ''
     })
     .filter(Boolean)
-    .slice(0, maxItems)
 }
 
-function normalizeEvidenceUsed(values, updates) {
-  if (!Array.isArray(values)) return []
-  const updateIds = new Set(updates.map((update, index) => String(update.id || `update-${index + 1}`)))
+function stripJsonFence(text) {
+  return cleanText(text, 12000)
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```$/i, '')
+    .trim()
+}
 
-  return values
-    .map((item) => {
-      if (!item || typeof item !== 'object') return null
-      const fallbackId = `update-${Math.min(updateIds.size || 1, 1)}`
-      const fieldUpdateId = cleanText(String(item.field_update_id || item.update_id || fallbackId), 120)
-      const note = cleanText(item.note || item.reason || item.text, 220)
-      if (!note) return null
+function parseStructuredText(text) {
+  const cleaned = stripJsonFence(text)
+  try {
+    return JSON.parse(cleaned)
+  } catch {
+    const firstBrace = cleaned.indexOf('{')
+    const lastBrace = cleaned.lastIndexOf('}')
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1))
+    }
+    throw new Error('Gemini did not return valid JSON.')
+  }
+}
+
+function normalizeStructuredReport(parsed, campaign) {
+  const title = cleanText(parsed?.title, 160) || `${cleanText(campaign?.title, 90)} Impact Draft`
+  const summary = typeof parsed?.summary === 'string' ? parsed.summary.trim() : ''
+
+  if (!summary || summary.length < 80) {
+    throw new Error('Structured AI response did not include a usable summary.')
+  }
+
+  const evidenceUsed = safeArray(parsed?.evidence_used || parsed?.evidenceUsed)
+    .map((item, index) => {
+      if (typeof item === 'string') {
+        return {
+          field_update_id: `ai-evidence-${index + 1}`,
+          note: cleanText(item, 180),
+        }
+      }
       return {
-        field_update_id: updateIds.has(fieldUpdateId) ? fieldUpdateId : fieldUpdateId,
-        note,
+        field_update_id: cleanText(item.field_update_id || item.fieldUpdateId || item.id, 120) || `ai-evidence-${index + 1}`,
+        note: cleanText(item.note || item.summary || item.text, 180) || `Evidence item ${index + 1}`,
       }
     })
-    .filter(Boolean)
-    .slice(0, 6)
-}
-
-function isCompleteText(text) {
-  const trimmed = cleanText(text, 6000)
-  if (!trimmed) return false
-  return /[.!?)]$/.test(trimmed)
-}
-
-function extractJsonBlock(text) {
-  if (!text) return ''
-  const trimmed = text.trim()
-
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (fenced?.[1]) return fenced[1].trim()
-
-  const start = trimmed.indexOf('{')
-  const end = trimmed.lastIndexOf('}')
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1)
-
-  return ''
-}
-
-function parseStructuredReport(rawText, campaign, updates) {
-  const jsonText = extractJsonBlock(rawText)
-  if (!jsonText) {
-    return { ok: false, error: 'No JSON object returned.' }
-  }
-
-  let parsed
-  try {
-    parsed = JSON.parse(jsonText)
-  } catch (error) {
-    return { ok: false, error: `Invalid JSON returned: ${error.message}` }
-  }
-
-  const summary = cleanText(parsed.summary || parsed.draft || parsed.report, 5000)
-  if (!summary || !isCompleteText(summary)) {
-    return { ok: false, error: 'Report summary is missing or incomplete.' }
-  }
-
-  const title = cleanText(parsed.title, 140) || `${cleanText(campaign.title, 90)} Impact Draft`
-  const evidenceUsed = normalizeEvidenceUsed(parsed.evidence_used || parsed.evidenceUsed, updates)
-  const missingEvidence = cleanList(parsed.missing_evidence || parsed.missingEvidence, 5, 180)
-  const riskFlags = cleanList(parsed.risk_flags || parsed.riskFlags, 5, 180)
-  const nextActions = cleanList(parsed.next_actions || parsed.nextActions, 5, 180)
+    .slice(0, 5)
 
   return {
-    ok: true,
-    report: {
-      title,
-      summary,
-      evidenceUsed,
-      missingEvidence,
-      riskFlags,
-      nextActions,
-      suggestedActions: nextActions,
-      reviewRequired: parsed.review_required !== false,
-      confidence: Number.isFinite(Number(parsed.confidence)) ? Math.max(0, Math.min(100, Number(parsed.confidence))) : null,
-      aiModel: GEMINI_MODEL,
-      generationSource: GEMINI_MODEL,
-      disclaimer: 'AI-generated drafts may contain inaccuracies; human review is required before sharing or publishing.',
-    },
+    title,
+    summary,
+    evidenceUsed,
+    missingEvidence: safeArray(parsed?.missing_evidence || parsed?.missingEvidence).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
+    riskFlags: safeArray(parsed?.risk_flags || parsed?.riskFlags).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
+    nextActions: safeArray(parsed?.next_actions || parsed?.nextActions).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
+    suggestedActions: safeArray(parsed?.next_actions || parsed?.nextActions).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
+    reviewRequired: parsed?.review_required !== false,
+    confidence: Number.isFinite(Number(parsed?.confidence)) ? Math.max(0, Math.min(100, Number(parsed.confidence))) : Math.min(92, 58 + (campaign?.updates?.length || 0) * 9),
+    aiModel: GEMINI_MODEL,
+    generationSource: 'gemini',
+    disclaimer: 'Review the draft before sharing externally.',
   }
 }
 
@@ -114,49 +89,44 @@ function buildPrompt(campaign) {
   const metrics = campaign?.metrics || {}
 
   const volunteerLines = volunteers.length
-    ? volunteers.map((volunteer, index) => `${index + 1}. ${cleanText(volunteer.name, 80)} — ${cleanText(volunteer.role, 100)}`).join('\n')
+    ? volunteers.map((volunteer, index) => `${index + 1}. ${cleanText(volunteer.name, 80)} — ${cleanText(volunteer.role, 100)}${volunteer.assignmentRole ? ` (${cleanText(volunteer.assignmentRole, 100)})` : ''}`).join('\n')
     : 'No volunteer details provided.'
 
   const updateLines = updates.map((update, index) => {
-    const id = cleanText(String(update.id || `update-${index + 1}`), 120)
+    const updateId = cleanText(update.id, 120) || `update-${index + 1}`
     const updateText = cleanText(update.update_text || update.text, 520)
     const updateLocation = cleanText(update.location, 120) || location
     const submittedBy = cleanText(update.submitted_by, 120) || 'field team'
-    return `${index + 1}. id: ${id}; note: ${updateText}; location: ${updateLocation}; submitted_by: ${submittedBy}`
+    const evidenceType = cleanText(update.evidence_type, 80) || 'field note'
+    return `${index + 1}. ID: ${updateId}; Text: ${updateText}; Location: ${updateLocation}; Submitted by: ${submittedBy}; Evidence type: ${evidenceType}`
   }).join('\n')
 
-  return `You are generating a human-reviewed NGO impact report draft for Niswarth AI.
+  return `You are generating a structured, human-reviewed NGO impact report draft for Niswarth AI.
 
-Write for an NGO coordinator. Keep the output useful, calm, and practical.
+Return ONLY valid JSON. Do not wrap the JSON in markdown.
 
 Hard rules:
-- Use ONLY the evidence provided below.
-- Do NOT invent beneficiary counts, donor names, dates, outcomes, locations, quotes, impact numbers, or volunteer names.
-- If evidence is missing or weak, say what should be collected or verified.
-- Do not use hype, sales language, or unsupported claims.
-- The report is a draft for human review, not a final public report.
-- Return valid JSON only. No markdown. No code fence. No commentary outside JSON.
+- Use ONLY the campaign details, volunteers, metrics, and field updates provided below.
+- Do NOT invent beneficiary counts, donors, dates, outcomes, quotes, or impact claims.
+- If evidence is thin, state what is missing in missing_evidence and risk_flags.
+- Keep language warm, practical, and suitable for NGO coordinators.
+- The summary must be 3 short paragraphs and 160 to 230 words total.
+- The summary must be complete and must not end mid-sentence.
+- Use field update IDs in evidence_used wherever possible.
 
-Return exactly this JSON shape:
+JSON schema:
 {
-  "title": "Short report title",
-  "summary": "Three short paragraphs. 150-220 words total. Complete sentences only.",
+  "title": "string",
+  "summary": "string",
   "evidence_used": [
-    { "field_update_id": "id from the field update list", "note": "Short reason this update supports the draft" }
+    { "field_update_id": "string", "note": "string" }
   ],
-  "missing_evidence": ["Short missing detail"],
-  "risk_flags": ["Short review caution"],
-  "next_actions": ["Short practical action"],
+  "missing_evidence": ["string"],
+  "risk_flags": ["string"],
+  "next_actions": ["string"],
   "review_required": true,
   "confidence": 0
 }
-
-Guidance:
-- evidence_used should include 1-6 field updates that directly support the draft.
-- missing_evidence should focus on gaps like attendance, dates, beneficiary feedback, photos/documents, or verification.
-- risk_flags should be review cautions, not scary technical warnings.
-- next_actions should help the NGO improve the report.
-- confidence should be 45-90 based on how complete the provided evidence is.
 
 Campaign details:
 Title: ${title}
@@ -178,42 +148,7 @@ Field updates:
 ${updateLines}`
 }
 
-function completeMetadata(report, campaign, updates) {
-  const updateCount = updates.length
-  const evidenceUsed = report.evidenceUsed?.length
-    ? report.evidenceUsed
-    : updates.slice(0, 4).map((update, index) => ({
-      field_update_id: String(update.id || `update-${index + 1}`),
-      note: cleanText(update.update_text || update.text, 180),
-    })).filter((item) => item.note)
-
-  const missingEvidence = report.missingEvidence?.length ? report.missingEvidence : [
-    updateCount < 3 ? 'More field updates would make the report stronger.' : '',
-    'Verify names, dates, numbers, and locations before external sharing.',
-  ].filter(Boolean)
-
-  const riskFlags = report.riskFlags?.length ? report.riskFlags : [
-    'Avoid adding outcomes that are not supported by field updates.',
-    'Review beneficiary privacy before sharing.',
-  ]
-
-  const nextActions = report.nextActions?.length ? report.nextActions : [
-    updateCount < 3 ? 'Collect more field notes.' : 'Review the available field notes.',
-    'Ask a human reviewer to approve the final version.',
-  ]
-
-  return {
-    ...report,
-    evidenceUsed: evidenceUsed.slice(0, 6),
-    missingEvidence: missingEvidence.slice(0, 5),
-    riskFlags: riskFlags.slice(0, 5),
-    nextActions: nextActions.slice(0, 5),
-    suggestedActions: nextActions.slice(0, 5),
-    confidence: Number.isFinite(Number(report.confidence)) ? Number(report.confidence) : Math.min(92, 58 + updateCount * 9),
-  }
-}
-
-async function requestGeminiStructuredReport({ apiKey, prompt, maxOutputTokens = 3200 }) {
+async function requestGeminiReport({ apiKey, prompt, maxOutputTokens = 3200 }) {
   const response = await fetch(GEMINI_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -228,7 +163,7 @@ async function requestGeminiStructuredReport({ apiKey, prompt, maxOutputTokens =
         },
       ],
       generationConfig: {
-        temperature: 0.15,
+        temperature: 0.2,
         topP: 0.8,
         maxOutputTokens,
         responseMimeType: 'application/json',
@@ -300,15 +235,15 @@ export default async function handler(req, res) {
     })
 
     const prompt = buildPrompt(campaign)
-    let aiResult = await requestGeminiStructuredReport({ apiKey, prompt, maxOutputTokens: 3200 })
+    let aiResult = await requestGeminiReport({ apiKey, prompt, maxOutputTokens: 3200 })
 
     if (aiResult.ok && aiResult.finishReason === 'MAX_TOKENS') {
-      console.warn(`[${requestId}] Gemini reached token limit. Retrying structured report generation.`, {
+      console.warn(`[${requestId}] Gemini returned MAX_TOKENS. Retrying once.`, {
         usageMetadata: aiResult.usageMetadata,
       })
-      aiResult = await requestGeminiStructuredReport({
+      aiResult = await requestGeminiReport({
         apiKey,
-        prompt: `${prompt}\n\nReturn complete JSON only. Keep each list short.`,
+        prompt: `${prompt}\n\nReturn complete valid JSON. Keep the summary concise.`,
         maxOutputTokens: 4200,
       })
     }
@@ -318,27 +253,34 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'AI generation request failed.', detail: String(aiResult.error).slice(0, 500) })
     }
 
-    const parsed = parseStructuredReport(aiResult.outputText, campaign, updates)
-    if (!parsed.ok) {
-      console.error(`[${requestId}] Gemini returned invalid structured output`, {
-        reason: parsed.error,
+    if (!aiResult.outputText || aiResult.finishReason === 'MAX_TOKENS') {
+      console.error(`[${requestId}] Gemini returned incomplete structured output`, {
         finishReason: aiResult.finishReason,
-        outputPreview: cleanText(aiResult.outputText, 240),
+        outputLength: aiResult.outputText?.length || 0,
       })
-      return res.status(502).json({ error: 'AI service returned invalid structured output. Please try again.' })
+      return res.status(502).json({ error: 'AI service returned incomplete structured output. Please try again.' })
     }
 
-    const report = completeMetadata(parsed.report, campaign, updates)
+    let structuredReport
+    try {
+      structuredReport = normalizeStructuredReport(parseStructuredText(aiResult.outputText), campaign)
+    } catch (parseError) {
+      console.error(`[${requestId}] Gemini returned invalid structured JSON`, {
+        message: parseError?.message,
+        outputPreview: aiResult.outputText.slice(0, 500),
+      })
+      return res.status(502).json({ error: 'AI service returned an invalid structured draft. Please try again.' })
+    }
 
     console.log(`[${requestId}] Structured report generation completed`, {
       finishReason: aiResult.finishReason,
-      evidenceItems: report.evidenceUsed.length,
-      missingItems: report.missingEvidence.length,
-      riskItems: report.riskFlags.length,
+      evidenceItems: structuredReport.evidenceUsed.length,
+      missingItems: structuredReport.missingEvidence.length,
+      riskItems: structuredReport.riskFlags.length,
       usageMetadata: aiResult.usageMetadata,
     })
 
-    return res.status(200).json(report)
+    return res.status(200).json(structuredReport)
   } catch (error) {
     console.error(`[${requestId}] Unexpected report generation error`, { message: error?.message })
     return res.status(500).json({ error: 'Unexpected report generation error.', detail: error?.message || 'Unknown error' })

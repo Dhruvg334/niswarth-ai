@@ -7,6 +7,11 @@ function getUpdateText(update) {
   return normalizeText(update?.update_text || update?.text || update?.summary)
 }
 
+function getUpdateId(update, index) {
+  if (typeof update === 'string') return `local-update-${index + 1}`
+  return normalizeText(update?.id, `local-update-${index + 1}`)
+}
+
 function getCampaignStatus(campaign) {
   return normalizeText(campaign?.status || campaign?.rawStatus, 'active')
 }
@@ -37,63 +42,37 @@ function buildEvidenceSentence(fieldUpdates) {
 }
 
 function buildEvidenceUsed(fieldUpdates) {
-  return fieldUpdates
-    .slice(0, 6)
-    .map((update, index) => {
-      const text = getUpdateText(update)
-      if (!text) return null
-      return {
-        field_update_id: update?.id || `update-${index + 1}`,
-        note: text.length > 140 ? `${text.slice(0, 137)}...` : text,
-      }
-    })
-    .filter(Boolean)
+  return fieldUpdates.slice(0, 4).map((update, index) => ({
+    field_update_id: getUpdateId(update, index),
+    note: getUpdateText(update).slice(0, 140) || `Field update ${index + 1}`,
+  }))
 }
 
-function buildMissingEvidence(campaign, fieldUpdates, volunteerCount) {
+function buildMissingEvidence(fieldUpdates, volunteers) {
   const missing = []
-  if (!fieldUpdates.length) missing.push('Field updates are needed before the report is shared outside the team.')
   if (fieldUpdates.length < 3) missing.push('More field notes would make the impact summary stronger.')
-  if (!volunteerCount) missing.push('Volunteer names or roles have not been linked to this campaign.')
-  if (!normalizeText(campaign?.goal)) missing.push('The campaign goal should be clarified before external reporting.')
-  return missing.slice(0, 4)
+  if (!volunteers.length) missing.push('Volunteer names or roles are missing from the campaign record.')
+  missing.push('Final numbers and beneficiary-sensitive details should be verified before external sharing.')
+  return missing.slice(0, 3)
 }
 
 function buildRiskFlags(fieldUpdates) {
-  const risks = [
-    'Verify numbers, names, dates, and locations before approval.',
-    'Avoid adding outcomes that are not supported by field updates.',
-  ]
-
-  if (!fieldUpdates.length) {
-    risks.unshift('This draft has no field evidence and should not be shared externally.')
-  }
-
-  return risks.slice(0, 4)
+  const risks = ['Avoid adding outcomes that are not supported by field updates.']
+  if (fieldUpdates.length < 2) risks.unshift('The current draft is based on limited field evidence.')
+  risks.push('Review names, dates, locations, and counts before approval.')
+  return risks.slice(0, 3)
 }
 
-function buildNextActions(campaign, fieldUpdates, volunteerCount) {
+function buildNextActions(campaign, fieldUpdates) {
+  if (Array.isArray(campaign?.nextActions) && campaign.nextActions.length) {
+    return campaign.nextActions.slice(0, 4)
+  }
+
   const actions = []
-  if (!volunteerCount) actions.push('Assign at least one responsible volunteer or coordinator.')
   if (fieldUpdates.length < 3) actions.push('Collect two or three more field updates.')
   actions.push('Review beneficiary privacy before sharing.')
   actions.push('Approve only after a human reviewer checks the final draft.')
   return actions.slice(0, 4)
-}
-
-export function normalizeReportMetadata(report = {}) {
-  return {
-    evidenceUsed: Array.isArray(report.evidenceUsed) ? report.evidenceUsed : [],
-    missingEvidence: Array.isArray(report.missingEvidence) ? report.missingEvidence : [],
-    riskFlags: Array.isArray(report.riskFlags) ? report.riskFlags : [],
-    nextActions: Array.isArray(report.nextActions)
-      ? report.nextActions
-      : Array.isArray(report.suggestedActions)
-        ? report.suggestedActions
-        : [],
-    aiModel: normalizeText(report.aiModel),
-    generationSource: normalizeText(report.generationSource, 'local-fallback'),
-  }
 }
 
 export function generateImpactReport(campaign = {}) {
@@ -108,6 +87,7 @@ export function generateImpactReport(campaign = {}) {
   const location = normalizeText(campaign.location, 'the campaign location')
   const goal = normalizeText(campaign.goal, 'support the stated campaign objective')
   const status = getCampaignStatus(campaign)
+  const volunteers = Array.isArray(campaign?.volunteers) ? campaign.volunteers : []
   const volunteerCount = getVolunteerCount(campaign)
   const fieldUpdateCount = Number.isFinite(Number(campaign?.metrics?.fieldUpdates))
     ? Number(campaign.metrics.fieldUpdates)
@@ -120,22 +100,18 @@ export function generateImpactReport(campaign = {}) {
     'Before this report is shared externally, the coordinator should verify names, counts, locations, dates, and beneficiary-sensitive details. If evidence is still limited, the next step should be to collect more structured field updates and then approve the final report after human review.',
   ]
 
-  const evidenceUsed = buildEvidenceUsed(fieldUpdates)
-  const missingEvidence = buildMissingEvidence(campaign, fieldUpdates, volunteerCount)
-  const riskFlags = buildRiskFlags(fieldUpdates)
-  const nextActions = buildNextActions(campaign, fieldUpdates, volunteerCount)
-
   return {
     title: `${title} Impact Draft`,
     confidence,
     summary: paragraphs.join('\n\n'),
-    evidenceUsed,
-    missingEvidence,
-    riskFlags,
-    nextActions,
-    suggestedActions: nextActions,
-    aiModel: '',
+    evidenceUsed: buildEvidenceUsed(fieldUpdates),
+    missingEvidence: buildMissingEvidence(fieldUpdates, volunteers),
+    riskFlags: buildRiskFlags(fieldUpdates),
+    nextActions: buildNextActions(campaign, fieldUpdates),
+    suggestedActions: buildNextActions(campaign, fieldUpdates),
+    reviewRequired: true,
+    aiModel: 'local-structured-generator',
     generationSource: 'local-fallback',
-    disclaimer: 'AI-generated drafts may contain inaccuracies; human review is required before sharing or publishing.',
+    disclaimer: 'Review the draft before sharing externally.',
   }
 }
