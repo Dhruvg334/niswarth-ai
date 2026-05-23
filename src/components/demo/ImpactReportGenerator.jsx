@@ -23,7 +23,7 @@ const insightCardStyles = {
   evidence: 'border-emerald-100 bg-emerald-50/45 text-slate-700',
   missing: 'border-amber-200 bg-amber-50/55 text-amber-900',
   caution: 'border-orange-200 bg-orange-50/50 text-orange-900',
-  actions: 'border-emerald-100 bg-white text-slate-700',
+  actions: 'border-emerald-100 bg-emerald-50/45 text-slate-700',
 }
 
 function FeedbackMessage({ type, message }) {
@@ -314,9 +314,9 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
             </section>
 
             <section className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-soft sm:p-6">
-              <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-                <div className="rounded-2xl border border-green-100 bg-green-50/45 p-4 text-sm leading-6 text-slate-600">
-                  <span className="font-extrabold text-forest">Human review required.</span> Review this draft before sharing externally. The AI can help organize evidence, but approval stays with the team.
+              <div className="grid items-start gap-5 lg:grid-cols-[0.75fr_1.25fr]">
+                <div className="rounded-2xl border border-green-100 bg-green-50/45 px-4 py-3 text-sm leading-6 text-slate-600">
+                  <span className="font-extrabold text-forest">Human review required.</span> Check the draft before sharing it outside the organization.
                 </div>
 
                 <div>

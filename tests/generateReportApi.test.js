@@ -114,6 +114,7 @@ test('generate-report API returns structured Gemini draft when Gemini succeeds',
   assert.equal(res.payload.missingEvidence.length, 1)
   assert.equal(res.payload.riskFlags.length, 1)
   assert.equal(res.payload.nextActions.length, 1)
+  assert.equal(Object.hasOwn(res.payload, 'suggestedActions'), false)
 
   globalThis.fetch = previousFetch
   if (previousKey) process.env.GEMINI_API_KEY = previousKey
@@ -154,6 +155,60 @@ test('generate-report API rejects invalid structured Gemini output', async () =>
 
   assert.equal(res.statusCode, 502)
   assert.match(res.payload.error, /invalid structured draft/i)
+
+  globalThis.fetch = previousFetch
+  if (previousKey) process.env.GEMINI_API_KEY = previousKey
+  else delete process.env.GEMINI_API_KEY
+})
+
+test('generate-report API derives confidence when Gemini returns zero confidence', async () => {
+  const previousKey = process.env.GEMINI_API_KEY
+  const previousFetch = globalThis.fetch
+  process.env.GEMINI_API_KEY = 'test-key'
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify({
+      candidates: [
+        {
+          finishReason: 'STOP',
+          content: {
+            parts: [
+              {
+                text: JSON.stringify({
+                  title: 'Tree Plantation Impact Draft',
+                  summary: 'This draft is based on available field notes for a plantation campaign. The update confirms early activity in the selected location and should be treated as a working summary. The team should verify the numbers and schedule before sharing the report externally.',
+                  evidence_used: [{ field_update_id: 'u1', note: 'Initial field activity was recorded.' }],
+                  missing_evidence: ['Exact plantation date is missing.'],
+                  risk_flags: ['Do not claim environmental outcomes yet.'],
+                  next_actions: ['Confirm event date and target tree count.'],
+                  review_required: true,
+                  confidence: 0,
+                }),
+              },
+            ],
+          },
+        },
+      ],
+    }),
+  })
+
+  const res = createMockResponse()
+  await handler({
+    method: 'POST',
+    body: {
+      campaign: {
+        id: 'c1',
+        title: 'Tree Plantation Drive',
+        updates: [{ id: 'u1', update_text: 'Initial field activity was recorded.' }],
+      },
+    },
+  }, res)
+
+  assert.equal(res.statusCode, 200)
+  assert.ok(res.payload.confidence >= 35)
+  assert.notEqual(res.payload.confidence, 0)
 
   globalThis.fetch = previousFetch
   if (previousKey) process.env.GEMINI_API_KEY = previousKey

@@ -60,8 +60,16 @@ export default function Demo() {
       return
     }
 
-    const dismissed = window.localStorage.getItem(`niswarth-starter-notice-${workspaceId}`)
-    setStarterNoticeVisible(dismissed !== 'dismissed')
+    const noticeKey = `niswarth-starter-notice-${workspaceId}`
+    const dismissed = window.localStorage.getItem(noticeKey)
+
+    if (dismissed === 'dismissed') {
+      setStarterNoticeVisible(false)
+      return
+    }
+
+    setStarterNoticeVisible(true)
+    window.localStorage.setItem(noticeKey, 'dismissed')
   }, [workspaceId])
 
   const campaign = useMemo(() => campaigns.find((item) => item.id === selectedId), [campaigns, selectedId])

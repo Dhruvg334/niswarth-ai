@@ -39,6 +39,22 @@ function parseStructuredText(text) {
   }
 }
 
+
+function deriveConfidence({ rawConfidence, campaign, evidenceUsed, missingEvidence, riskFlags }) {
+  const numericConfidence = Number(rawConfidence)
+  if (Number.isFinite(numericConfidence) && numericConfidence >= 25 && numericConfidence <= 100) {
+    return Math.round(numericConfidence)
+  }
+
+  const updateCount = Array.isArray(campaign?.updates) ? campaign.updates.length : 0
+  const evidenceCount = Array.isArray(evidenceUsed) ? evidenceUsed.length : 0
+  const missingCount = Array.isArray(missingEvidence) ? missingEvidence.length : 0
+  const riskCount = Array.isArray(riskFlags) ? riskFlags.length : 0
+
+  const derived = 52 + updateCount * 8 + evidenceCount * 3 - missingCount * 3 - riskCount * 2
+  return Math.max(35, Math.min(86, Math.round(derived)))
+}
+
 function normalizeStructuredReport(parsed, campaign) {
   const title = cleanText(parsed?.title, 160) || `${cleanText(campaign?.title, 90)} Impact Draft`
   const summary = typeof parsed?.summary === 'string' ? parsed.summary.trim() : ''
@@ -62,16 +78,36 @@ function normalizeStructuredReport(parsed, campaign) {
     })
     .slice(0, 5)
 
+  const missingEvidence = safeArray(parsed?.missing_evidence || parsed?.missingEvidence)
+    .map((item) => cleanText(String(item), 180))
+    .filter(Boolean)
+    .slice(0, 4)
+
+  const riskFlags = safeArray(parsed?.risk_flags || parsed?.riskFlags)
+    .map((item) => cleanText(String(item), 180))
+    .filter(Boolean)
+    .slice(0, 4)
+
+  const nextActions = safeArray(parsed?.next_actions || parsed?.nextActions || parsed?.suggested_actions || parsed?.suggestedActions)
+    .map((item) => cleanText(String(item), 180))
+    .filter(Boolean)
+    .slice(0, 4)
+
   return {
     title,
     summary,
     evidenceUsed,
-    missingEvidence: safeArray(parsed?.missing_evidence || parsed?.missingEvidence).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
-    riskFlags: safeArray(parsed?.risk_flags || parsed?.riskFlags).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
-    nextActions: safeArray(parsed?.next_actions || parsed?.nextActions).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
-    suggestedActions: safeArray(parsed?.next_actions || parsed?.nextActions).map((item) => cleanText(String(item), 180)).filter(Boolean).slice(0, 4),
+    missingEvidence,
+    riskFlags,
+    nextActions,
     reviewRequired: parsed?.review_required !== false,
-    confidence: Number.isFinite(Number(parsed?.confidence)) ? Math.max(0, Math.min(100, Number(parsed.confidence))) : Math.min(92, 58 + (campaign?.updates?.length || 0) * 9),
+    confidence: deriveConfidence({
+      rawConfidence: parsed?.confidence,
+      campaign,
+      evidenceUsed,
+      missingEvidence,
+      riskFlags,
+    }),
     aiModel: GEMINI_MODEL,
     generationSource: 'gemini',
     disclaimer: 'Review the draft before sharing externally.',
@@ -113,6 +149,7 @@ Hard rules:
 - The summary must be 3 short paragraphs and 160 to 230 words total.
 - The summary must be complete and must not end mid-sentence.
 - Use field update IDs in evidence_used wherever possible.
+- Set confidence as a realistic number from 40 to 90. Use lower values when evidence is thin; never return 0 unless no draft can be created.
 
 JSON schema:
 {
@@ -125,7 +162,7 @@ JSON schema:
   "risk_flags": ["string"],
   "next_actions": ["string"],
   "review_required": true,
-  "confidence": 0
+  "confidence": 65
 }
 
 Campaign details:
