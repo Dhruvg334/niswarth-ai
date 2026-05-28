@@ -27,7 +27,7 @@ export default function Footer() {
           <p className="font-bold text-white">Contact</p>
           <div className="mt-4 flex flex-col gap-2 text-sm text-green-50/80">
             <Link to="/contact" className="hover:text-white">Map Workflow</Link>
-            <span>hello@niswarth.ai</span>
+            <span>dhruvg3304@gmail.com</span>
             <span>AI drafts require human review</span>
           </div>
         </div>
