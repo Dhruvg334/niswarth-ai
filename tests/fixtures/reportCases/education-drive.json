@@ -1,0 +1,61 @@
+{
+  "name": "education-drive",
+  "campaign": {
+    "id": "case-education-1",
+    "title": "Monsoon Learning Support Drive",
+    "type": "Education",
+    "location": "Pune",
+    "goal": "Support students who missed classes during monsoon disruptions",
+    "status": "In Progress",
+    "volunteers": [
+      {
+        "id": "v1",
+        "name": "Riya Sharma",
+        "role": "Field Coordinator",
+        "assignmentRole": "Learning Session Coordinator"
+      }
+    ],
+    "updates": [
+      {
+        "id": "edu-update-1",
+        "update_text": "18 students attended the weekend learning support session at the community center. Volunteers helped with reading practice and basic mathematics revision.",
+        "location": "Pune",
+        "submitted_by": "Riya Sharma",
+        "evidence_type": "Field note"
+      },
+      {
+        "id": "edu-update-2",
+        "update_text": "Three volunteers distributed worksheets and noted that several students still need extra support in basic multiplication and reading fluency.",
+        "location": "Pune",
+        "submitted_by": "Aman Verma",
+        "evidence_type": "Volunteer note"
+      },
+      {
+        "id": "edu-update-3",
+        "update_text": "Parents requested one more follow-up session next Saturday because some students could not attend due to heavy rain.",
+        "location": "Pune",
+        "submitted_by": "Riya Sharma",
+        "evidence_type": "Community feedback"
+      }
+    ],
+    "metrics": {
+      "volunteersAssigned": 3,
+      "fieldUpdates": 3,
+      "eventsCompleted": 1,
+      "completion": "40%"
+    }
+  },
+  "expectedEvidence": [
+    "18 students",
+    "reading practice",
+    "worksheets",
+    "follow-up session"
+  ],
+  "mustNotInvent": [
+    "exam scores",
+    "donor",
+    "medical",
+    "graduation",
+    "quote"
+  ]
+}

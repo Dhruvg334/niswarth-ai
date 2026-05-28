@@ -1,0 +1,54 @@
+{
+  "name": "health-awareness",
+  "campaign": {
+    "id": "case-health-1",
+    "title": "Community Nutrition Awareness Drive",
+    "type": "Health Awareness",
+    "location": "Jaipur",
+    "goal": "Help families understand basic nutrition and hygiene practices",
+    "status": "In Progress",
+    "volunteers": [
+      {
+        "id": "v2",
+        "name": "Neha Singh",
+        "role": "Community Coordinator",
+        "assignmentRole": "Session Documentation Lead"
+      }
+    ],
+    "updates": [
+      {
+        "id": "health-update-1",
+        "update_text": "22 parents attended the first nutrition awareness session at the community hall. Volunteers explained the importance of clean drinking water and balanced meals for children.",
+        "location": "Jaipur",
+        "submitted_by": "Neha Singh",
+        "evidence_type": "Field note"
+      },
+      {
+        "id": "health-update-2",
+        "update_text": "Several families asked for a follow-up session focused on low-cost nutritious meal planning. Volunteers collected questions from participants for the next visit.",
+        "location": "Jaipur",
+        "submitted_by": "Aman Verma",
+        "evidence_type": "Community feedback"
+      }
+    ],
+    "metrics": {
+      "volunteersAssigned": 2,
+      "fieldUpdates": 2,
+      "eventsCompleted": 1,
+      "completion": "35%"
+    }
+  },
+  "expectedEvidence": [
+    "22 parents",
+    "clean drinking water",
+    "balanced meals",
+    "follow-up session"
+  ],
+  "mustNotInvent": [
+    "doctor",
+    "medical results",
+    "cured",
+    "hospital",
+    "donor"
+  ]
+}
