@@ -1,0 +1,46 @@
+{
+  "name": "animal-welfare",
+  "campaign": {
+    "id": "case-animal-1",
+    "title": "Stray Care Drive",
+    "type": "Animal Welfare",
+    "location": "Noida Sector 62",
+    "goal": "Coordinate feeding routes, vaccination notes, and rescue follow-ups for stray animals",
+    "status": "Review Needed",
+    "volunteers": [
+      {
+        "id": "v3",
+        "name": "Kabir Rao",
+        "role": "Route Volunteer",
+        "assignmentRole": "Feeding Route Lead"
+      }
+    ],
+    "updates": [
+      {
+        "id": "animal-update-1",
+        "update_text": "Volunteers completed an evening feeding route and noted six dogs requiring follow-up observation near the market area.",
+        "location": "Noida Sector 62",
+        "submitted_by": "Kabir Rao",
+        "evidence_type": "Field note"
+      }
+    ],
+    "metrics": {
+      "volunteersAssigned": 1,
+      "fieldUpdates": 1,
+      "eventsCompleted": 0,
+      "completion": "20%"
+    }
+  },
+  "expectedEvidence": [
+    "feeding route",
+    "six dogs",
+    "follow-up observation"
+  ],
+  "mustNotInvent": [
+    "vaccinated",
+    "adopted",
+    "veterinarian confirmed",
+    "surgery",
+    "funding"
+  ]
+}
