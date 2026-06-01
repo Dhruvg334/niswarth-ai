@@ -215,6 +215,41 @@ export async function createCampaign({ organizationId, title, type, location, st
   return { campaign: data, error, skipped: false }
 }
 
+
+export async function updateCampaign({ organizationId, campaignId, title, type, location, status = 'planning', goal = '', startDate = '', endDate = '' }) {
+  if (!isSupabaseConfigured) {
+    return { campaign: null, error: new Error('Supabase is not configured.'), skipped: true }
+  }
+
+  if (!organizationId) {
+    return { campaign: null, error: new Error('Workspace is required to update a campaign.'), skipped: false }
+  }
+
+  if (!campaignId) {
+    return { campaign: null, error: new Error('Campaign is required for update.'), skipped: false }
+  }
+
+  const payload = {
+    title: title.trim(),
+    type,
+    location: location.trim(),
+    status,
+    goal: goal.trim() || null,
+    start_date: startDate || null,
+    end_date: endDate || null,
+  }
+
+  const { data, error } = await supabase
+    .from('campaigns')
+    .update(payload)
+    .eq('id', campaignId)
+    .eq('organization_id', organizationId)
+    .select('*')
+    .single()
+
+  return { campaign: data, error, skipped: false }
+}
+
 export async function createFieldUpdate({ organizationId, campaignId, updateText, location = '', submittedBy = '', evidenceType = 'text' }) {
   if (!isSupabaseConfigured) {
     return { fieldUpdate: null, error: new Error('Supabase is not configured.'), skipped: true }
