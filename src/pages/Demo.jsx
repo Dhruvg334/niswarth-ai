@@ -8,6 +8,7 @@ import CampaignSelector from '../components/demo/CampaignSelector.jsx'
 import ImpactReportGenerator from '../components/demo/ImpactReportGenerator.jsx'
 import ReportsHistory from '../components/demo/ReportsHistory.jsx'
 import CreateCampaignPanel from '../components/forms/CreateCampaignPanel.jsx'
+import EditCampaignPanel from '../components/forms/EditCampaignPanel.jsx'
 import AddFieldUpdatePanel from '../components/forms/AddFieldUpdatePanel.jsx'
 import AddVolunteerPanel from '../components/forms/AddVolunteerPanel.jsx'
 import AssignVolunteerPanel from '../components/forms/AssignVolunteerPanel.jsx'
@@ -28,6 +29,7 @@ export default function Demo() {
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [updateOpen, setUpdateOpen] = useState(false)
   const [volunteerOpen, setVolunteerOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -82,6 +84,12 @@ export default function Demo() {
     setCreateOpen(false)
     setActionNotice('Campaign created and synced with Supabase.')
     await loadCampaigns({ preferredId: createdCampaign?.id })
+  }
+
+  async function handleCampaignUpdated(updatedCampaign) {
+    setEditOpen(false)
+    setActionNotice('Campaign details updated.')
+    await loadCampaigns({ preferredId: updatedCampaign?.id || campaign?.id, preserveSelection: true })
   }
 
   async function handleFieldUpdateCreated() {
@@ -259,14 +267,23 @@ export default function Demo() {
                     <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Managed by {roleLabel}</p>
                   </div>
                   {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={handleDeleteCampaign}
-                      disabled={deletingCampaignId === campaign.id}
-                      className="inline-flex items-center justify-center rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Trash2 className="mr-2" size={14} /> {deletingCampaignId === campaign.id ? 'Deleting...' : 'Delete'}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditOpen(true)}
+                        className="inline-flex items-center justify-center rounded-full border border-green-200 bg-white px-4 py-2 text-xs font-extrabold text-forest transition hover:bg-green-50"
+                      >
+                        Edit details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteCampaign}
+                        disabled={deletingCampaignId === campaign.id}
+                        className="inline-flex items-center justify-center rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 className="mr-2" size={14} /> {deletingCampaignId === campaign.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="mt-6 space-y-4 text-sm text-slate-600">
@@ -389,6 +406,10 @@ export default function Demo() {
 
       <SlideOver open={createOpen} title="Create campaign" description="Add a campaign record that can receive volunteers, field updates, and report drafts." onClose={() => setCreateOpen(false)}>
         <CreateCampaignPanel backendReady={backendReady} organizationId={workspaceId} onCreated={handleCampaignCreated} />
+      </SlideOver>
+
+      <SlideOver open={editOpen} title="Edit campaign" description="Update campaign details without changing its volunteers, field updates, or reports." onClose={() => setEditOpen(false)}>
+        <EditCampaignPanel campaign={campaign} backendReady={backendReady} organizationId={workspaceId} onUpdated={handleCampaignUpdated} onCancel={() => setEditOpen(false)} />
       </SlideOver>
 
       <SlideOver open={updateOpen} title="Add field update" description="Capture verified field evidence before generating impact reports." onClose={() => setUpdateOpen(false)}>
