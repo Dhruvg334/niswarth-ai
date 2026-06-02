@@ -1,4 +1,7 @@
-import { CheckCircle2, Clock3, FileText, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
+import { AlertCircle, CheckCircle2, Clock3, FileText, RotateCcw } from 'lucide-react'
+import Button from '../common/Button.jsx'
+import { updateImpactReportStatus } from '../../services/reportService.js'
 
 const statusStyles = {
   draft: 'bg-slate-100 text-slate-700',
@@ -49,7 +52,57 @@ function SmallMeta({ label, value }) {
   )
 }
 
-export default function ReportsHistory({ reports = [] }) {
+function ReportReviewActions({ report, canReviewReports, onReportStatusChanged }) {
+  const [notes, setNotes] = useState(report.review_notes || '')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  if (!canReviewReports || report.status !== 'under_review') return null
+
+  async function updateStatus(nextStatus) {
+    setMessage('')
+    setErrorMessage('')
+
+    if (nextStatus === 'needs_revision' && notes.trim().length < 8) {
+      setErrorMessage('Add a short review note before requesting revision.')
+      return
+    }
+
+    setSaving(true)
+    const { error } = await updateImpactReportStatus({ reportId: report.id, status: nextStatus, reviewNotes: notes })
+    setSaving(false)
+
+    if (error) {
+      setErrorMessage(error.message || 'Could not update report review status.')
+      return
+    }
+
+    setMessage(nextStatus === 'approved' ? 'Report approved.' : 'Report sent back for revision.')
+    onReportStatusChanged?.()
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-green-100 bg-white p-4">
+      <div className="flex items-center gap-2 text-sm font-extrabold text-ink"><CheckCircle2 size={16} /> Reviewer action</div>
+      <textarea
+        value={notes}
+        onChange={(event) => setNotes(event.target.value)}
+        rows={3}
+        placeholder="Optional approval note, or required note for revision."
+        className="mt-3 w-full rounded-2xl border border-green-100 bg-green-50/40 p-3 text-sm leading-6 text-slate-700 outline-none focus:border-leaf focus:ring-4 focus:ring-green-100"
+      />
+      <div className="mt-3 flex flex-wrap gap-3">
+        <Button variant="secondary" onClick={() => updateStatus('needs_revision')} disabled={saving} className="min-w-[150px] justify-center"><RotateCcw className="mr-2" size={16} /> Needs Revision</Button>
+        <Button onClick={() => updateStatus('approved')} disabled={saving} className="min-w-[150px] justify-center"><CheckCircle2 className="mr-2" size={16} /> Approve</Button>
+      </div>
+      {errorMessage && <p className="mt-3 flex gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800"><AlertCircle size={14} /> {errorMessage}</p>}
+      {message && <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-800">{message}</p>}
+    </div>
+  )
+}
+
+export default function ReportsHistory({ reports = [], canReviewReports = false, onReportStatusChanged }) {
   return (
     <div className="premium-card rounded-[2rem] p-7">
       <div>
@@ -88,7 +141,7 @@ export default function ReportsHistory({ reports = [] }) {
                   <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-xs leading-5 text-amber-800"><span className="font-extrabold">Review note:</span> {report.review_notes}</p>
                 )}
 
-                {(latestLog || versions.length > 0) && (
+                {(latestLog || versions.length > 0 || canReviewReports) && (
                   <details className="mt-4 rounded-2xl border border-green-100 bg-green-50/45 p-4 text-sm text-slate-600">
                     <summary className="cursor-pointer select-none text-sm font-extrabold text-forest">View audit trail</summary>
 
@@ -113,6 +166,8 @@ export default function ReportsHistory({ reports = [] }) {
                         </div>
                       </div>
                     )}
+
+                    <ReportReviewActions report={report} canReviewReports={canReviewReports} onReportStatusChanged={onReportStatusChanged} />
                   </details>
                 )}
               </article>

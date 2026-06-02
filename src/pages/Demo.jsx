@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Database, FilePlus2, Plus, RefreshCw, ShieldCheck, Trash2, UserPlus, Users, WifiOff } from 'lucide-react'
+import { Activity, Database, FilePlus2, Plus, RefreshCw, ShieldCheck, Trash2, UserCog, UserPlus, Users, WifiOff } from 'lucide-react'
 import SectionHeader from '../components/common/SectionHeader.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
 import Button from '../components/common/Button.jsx'
@@ -12,16 +12,18 @@ import EditCampaignPanel from '../components/forms/EditCampaignPanel.jsx'
 import AddFieldUpdatePanel from '../components/forms/AddFieldUpdatePanel.jsx'
 import AddVolunteerPanel from '../components/forms/AddVolunteerPanel.jsx'
 import AssignVolunteerPanel from '../components/forms/AssignVolunteerPanel.jsx'
+import WorkspaceMembersPanel from '../components/demo/WorkspaceMembersPanel.jsx'
 import { deleteCampaign, getCampaignsWithRelations } from '../services/campaignService.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { calculateGlobalMetrics, calculateQualityMetrics, calculateVolunteerMetrics } from '../utils/calculateMetrics.js'
+import { getRoleLabel, getWorkspacePermissions } from '../utils/permissions.js'
 
 export default function Demo() {
-  const { workspace } = useAuth()
+  const { workspace, user, refreshWorkspace } = useAuth()
   const workspaceId = workspace?.id || null
   const workspaceRole = workspace?.role || 'viewer'
-  const roleLabel = workspaceRole ? `${workspaceRole.charAt(0).toUpperCase()}${workspaceRole.slice(1)}` : 'Viewer'
-  const isAdmin = workspaceRole === 'admin'
+  const roleLabel = getRoleLabel(workspaceRole)
+  const permissions = useMemo(() => getWorkspacePermissions(workspaceRole), [workspaceRole])
   const [campaigns, setCampaigns] = useState([])
   const [volunteers, setVolunteers] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -33,6 +35,7 @@ export default function Demo() {
   const [updateOpen, setUpdateOpen] = useState(false)
   const [volunteerOpen, setVolunteerOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
   const [actionNotice, setActionNotice] = useState('')
   const [starterNoticeVisible, setStarterNoticeVisible] = useState(false)
   const [deletingCampaignId, setDeletingCampaignId] = useState(null)
@@ -116,7 +119,7 @@ export default function Demo() {
   }
 
   async function handleDeleteCampaign() {
-    if (!campaign?.id || !isAdmin) return
+    if (!campaign?.id || !permissions.canDeleteCampaigns) return
 
     const confirmed = window.confirm(`Delete "${campaign.title}"? This will also remove its field updates, volunteer assignments, and report history from this workspace.`)
     if (!confirmed) return
@@ -159,7 +162,8 @@ export default function Demo() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
-            {isAdmin && <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2" size={18} /> New Campaign</Button>}
+            {permissions.canManageMembers && <Button variant="secondary" onClick={() => setMembersOpen(true)}><UserCog className="mr-2" size={18} /> Members</Button>}
+            {permissions.canCreateCampaigns && <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2" size={18} /> New Campaign</Button>}
           </div>
         </div>
 
@@ -237,7 +241,7 @@ export default function Demo() {
                     <p className="mt-1 text-sm text-slate-600">Track reusable volunteer profiles and campaign assignments.</p>
                   </div>
                 </div>
-                {isAdmin && <Button variant="secondary" onClick={() => setVolunteerOpen(true)}><UserPlus className="mr-2" size={18} /> Add Volunteer</Button>}
+                {permissions.canManageVolunteers && <Button variant="secondary" onClick={() => setVolunteerOpen(true)}><UserPlus className="mr-2" size={18} /> Add Volunteer</Button>}
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
@@ -266,7 +270,7 @@ export default function Demo() {
                     <h2 className="display-font text-3xl font-extrabold text-ink">Campaign overview</h2>
                     <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Managed by {roleLabel}</p>
                   </div>
-                  {isAdmin && (
+                  {permissions.canEditCampaigns && (
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -304,7 +308,7 @@ export default function Demo() {
                     <h2 className="display-font text-3xl font-extrabold text-ink">Assigned volunteers</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">People connected to this campaign and the role they play in the workflow.</p>
                   </div>
-                  {isAdmin && <Button variant="secondary" onClick={() => setAssignOpen(true)}><Users className="mr-2" size={18} /> Assign Volunteer</Button>}
+                  {permissions.canManageVolunteers && <Button variant="secondary" onClick={() => setAssignOpen(true)}><Users className="mr-2" size={18} /> Assign Volunteer</Button>}
                 </div>
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
                   {campaign.volunteers.length > 0 ? campaign.volunteers.map((volunteer) => (
@@ -326,7 +330,7 @@ export default function Demo() {
                     </div>
                   )) : (
                     <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-6 text-slate-600">
-                      No volunteers assigned yet. Admins can add volunteer profiles and assign them to this campaign.
+                      No volunteers assigned yet. Admins and coordinators can add volunteer profiles and assign them to this campaign.
                     </div>
                   )}
                 </div>
@@ -334,7 +338,7 @@ export default function Demo() {
             </div>
 
             <div className="mt-8">
-              <ImpactReportGenerator campaign={campaign} organizationId={workspaceId} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
+              <ImpactReportGenerator campaign={campaign} organizationId={workspaceId} permissions={permissions} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
             </div>
 
             <div className="mt-8 grid gap-8 xl:grid-cols-2">
@@ -344,7 +348,7 @@ export default function Demo() {
                     <h2 className="display-font text-3xl font-extrabold text-ink">Field updates</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">Evidence collected from volunteers and field teams for the selected campaign.</p>
                   </div>
-                  {isAdmin && <Button variant="secondary" onClick={() => setUpdateOpen(true)}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>}
+                  {permissions.canAddFieldUpdates && <Button variant="secondary" onClick={() => setUpdateOpen(true)}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>}
                 </div>
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                   {campaign.fieldUpdates?.length > 0 ? campaign.fieldUpdates.map((update, index) => (
@@ -361,7 +365,7 @@ export default function Demo() {
                   )}
                 </div>
               </div>
-              <ReportsHistory reports={campaign.reports || []} />
+              <ReportsHistory reports={campaign.reports || []} canReviewReports={permissions.canReviewReports} onReportStatusChanged={() => loadCampaigns({ preserveSelection: true })} />
             </div>
 
             <div className="mt-8 premium-card rounded-[2rem] p-7">
@@ -422,6 +426,10 @@ export default function Demo() {
 
       <SlideOver open={assignOpen} title="Assign volunteer" description="Link an existing volunteer to the selected campaign with a clear assignment role." onClose={() => setAssignOpen(false)}>
         <AssignVolunteerPanel campaign={campaign} volunteers={volunteers} backendReady={backendReady} onAssigned={handleVolunteerAssigned} />
+      </SlideOver>
+
+      <SlideOver open={membersOpen} title="Workspace members" description="Add existing users to this workspace and assign simple roles." onClose={() => setMembersOpen(false)}>
+        <WorkspaceMembersPanel organizationId={workspaceId} currentUserId={user?.id} backendReady={backendReady} onChanged={refreshWorkspace} />
       </SlideOver>
     </div>
   )

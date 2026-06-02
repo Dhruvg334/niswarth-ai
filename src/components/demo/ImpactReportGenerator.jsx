@@ -81,7 +81,7 @@ function buildReportMetadata(report) {
   }
 }
 
-export default function ImpactReportGenerator({ campaign, organizationId, onReportSaved }) {
+export default function ImpactReportGenerator({ campaign, organizationId, permissions = {}, onReportSaved }) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [report, setReport] = useState(null)
@@ -248,7 +248,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
     setSuccessMessage('Draft copied to clipboard.')
   }
 
-  const canGenerate = Boolean(campaign?.updates?.length) && !loading && !saving
+  const canGenerate = Boolean(permissions.canGenerateReports) && Boolean(campaign?.updates?.length) && !loading && !saving
   const isFinalApproved = reportStatus === 'approved'
   const metadata = report ? buildReportMetadata(report) : null
 
@@ -262,9 +262,11 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
             Turn field updates into a clear draft, verify the evidence, and move the report through human review.
           </p>
         </div>
-        <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
-          <Sparkles className="mr-2" size={18} /> Generate Draft
-        </Button>
+        {permissions.canGenerateReports && (
+          <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+            <Sparkles className="mr-2" size={18} /> Generate Draft
+          </Button>
+        )}
       </div>
 
       <div className="mt-7 rounded-[1.5rem] border border-green-100 bg-green-50/55 p-5 sm:p-6">
@@ -272,9 +274,11 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
         {saving && <p className="mt-3 text-xs font-bold text-forest">Saving workflow changes...</p>}
         {!loading && !report && (
           <div className="rounded-2xl bg-white/85 p-5 text-sm leading-7 text-slate-600">
-            {campaign?.updates?.length
-              ? 'Click “Generate Draft” to prepare a first report draft from this campaign’s field updates.'
-              : 'Add field updates before generating an impact report. This keeps the report grounded in real activity.'}
+            {!permissions.canGenerateReports
+              ? 'Report generation is available to admins and coordinators. Reviewers can inspect and approve reports from Report History.'
+              : campaign?.updates?.length
+                ? 'Click “Generate Draft” to prepare a first report draft from this campaign’s field updates.'
+                : 'Add field updates before generating an impact report. This keeps the report grounded in real activity.'}
           </div>
         )}
 
@@ -345,10 +349,10 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
                 <p className="text-sm font-extrabold text-ink">Report actions</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button variant="secondary" onClick={handleCopy} className="min-w-[160px] justify-center"><Copy className="mr-2" size={18} /> Copy Draft</Button>
-                  <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || isFinalApproved} className="min-w-[160px] justify-center"><Save className="mr-2" size={18} /> Save Draft</Button>
-                  <Button onClick={() => handleStatusChange('under_review')} disabled={saving || isFinalApproved} className="min-w-[190px] justify-center"><Send className="mr-2" size={18} /> Send for Review</Button>
-                  <Button variant="secondary" onClick={() => handleStatusChange('needs_revision')} disabled={saving || isFinalApproved} className="min-w-[170px] justify-center"><RotateCcw className="mr-2" size={18} /> Needs Revision</Button>
-                  <Button onClick={() => handleStatusChange('approved')} disabled={saving || isFinalApproved} className="min-w-[180px] justify-center"><CheckCircle2 className="mr-2" size={18} /> Approve Report</Button>
+                  {permissions.canSaveReportDrafts && <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || isFinalApproved} className="min-w-[160px] justify-center"><Save className="mr-2" size={18} /> Save Draft</Button>}
+                  {permissions.canSendReportsForReview && <Button onClick={() => handleStatusChange('under_review')} disabled={saving || isFinalApproved} className="min-w-[190px] justify-center"><Send className="mr-2" size={18} /> Send for Review</Button>}
+                  {permissions.canReviewReports && <Button variant="secondary" onClick={() => handleStatusChange('needs_revision')} disabled={saving || isFinalApproved} className="min-w-[170px] justify-center"><RotateCcw className="mr-2" size={18} /> Needs Revision</Button>}
+                  {permissions.canReviewReports && <Button onClick={() => handleStatusChange('approved')} disabled={saving || isFinalApproved} className="min-w-[180px] justify-center"><CheckCircle2 className="mr-2" size={18} /> Approve Report</Button>}
                 </div>
               </div>
             </section>
