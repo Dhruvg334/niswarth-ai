@@ -30,7 +30,19 @@ function normalizeFallbackCampaign(campaign) {
   }
 }
 
-function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdates, impactReports }) {
+function groupBy(items, key) {
+  return items.reduce((map, item) => {
+    const value = item?.[key]
+    if (!value) return map
+    if (!map.has(value)) map.set(value, [])
+    map.get(value).push(item)
+    return map
+  }, new Map())
+}
+
+function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdates, impactReports, aiGenerationLogs = [], reportVersions = [] }) {
+  const logsByReportId = groupBy(aiGenerationLogs, 'report_id')
+  const versionsByReportId = groupBy(reportVersions, 'report_id')
   return campaigns.map((campaign) => {
     const assignmentRows = campaignVolunteers.filter((item) => item.campaign_id === campaign.id)
     const assignedVolunteers = assignmentRows.map((assignment) => {
@@ -53,6 +65,11 @@ function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdat
 
     const reports = impactReports
       .filter((report) => report.campaign_id === campaign.id)
+      .map((report) => ({
+        ...report,
+        ai_generation_logs: (logsByReportId.get(report.id) || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+        report_versions: (versionsByReportId.get(report.id) || []).sort((a, b) => (b.version_number || 0) - (a.version_number || 0)),
+      }))
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
     const metrics = calculateCampaignMetrics({
@@ -143,14 +160,16 @@ export async function getCampaignsWithRelations({ organizationId } = {}) {
   }
 
   try {
-    const [campaignsRes, volunteersRes, fieldUpdatesRes, impactReportsRes] = await Promise.all([
+    const [campaignsRes, volunteersRes, fieldUpdatesRes, impactReportsRes, aiLogsRes, reportVersionsRes] = await Promise.all([
       supabase.from('campaigns').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true }),
       supabase.from('volunteers').select('*').eq('organization_id', organizationId).order('created_at', { ascending: true }),
       supabase.from('field_updates').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }),
       supabase.from('impact_reports').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }),
+      supabase.from('ai_generation_logs').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }),
+      supabase.from('report_versions').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false }),
     ])
 
-    const firstError = [campaignsRes, volunteersRes, fieldUpdatesRes, impactReportsRes].find((result) => result.error)?.error
+    const firstError = [campaignsRes, volunteersRes, fieldUpdatesRes, impactReportsRes, aiLogsRes, reportVersionsRes].find((result) => result.error)?.error
     if (firstError) throw firstError
 
     const campaignIds = (campaignsRes.data || []).map((campaign) => campaign.id)
@@ -167,6 +186,8 @@ export async function getCampaignsWithRelations({ organizationId } = {}) {
         campaignVolunteers: campaignVolunteersRes.data || [],
         fieldUpdates: fieldUpdatesRes.data || [],
         impactReports: impactReportsRes.data || [],
+        aiGenerationLogs: aiLogsRes.data || [],
+        reportVersions: reportVersionsRes.data || [],
       }),
       volunteers: enrichVolunteerProfiles({
         volunteers: volunteersRes.data || [],
