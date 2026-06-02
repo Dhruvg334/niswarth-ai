@@ -77,6 +77,7 @@ function buildReportMetadata(report) {
     nextActions,
     aiModel: report?.aiModel || null,
     generationSource: report?.generationSource || null,
+    confidence: report?.confidence || null,
   }
 }
 
@@ -107,6 +108,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
       campaignId: campaign.id,
       draftText: generatedReport.summary,
       editedText: generatedReport.summary,
+      title: generatedReport.title,
       ...metadata,
     })
     setSaving(false)
@@ -194,6 +196,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
 
     setReportStatus('draft')
     setSuccessMessage('Edited draft saved successfully.')
+    onReportSaved?.()
   }
 
   async function handleStatusChange(nextStatus) {
@@ -215,7 +218,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, onRepo
     }
 
     setSaving(true)
-    const saveDraftResult = await updateImpactReportDraft({ reportId: savedReportId, editedText: draftText.trim() })
+    const saveDraftResult = await updateImpactReportDraft({ reportId: savedReportId, editedText: draftText.trim(), createVersion: false })
     if (saveDraftResult.error) {
       setSaving(false)
       setErrorMessage('Could not save the edited report text before updating status.')
