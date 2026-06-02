@@ -16,7 +16,7 @@ const links = [
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
-  const { isAuthenticated, workspace, signOut } = useAuth()
+  const { isAuthenticated, workspace, workspaces, switchWorkspace, workspaceLoading, signOut } = useAuth()
   const roleLabel = workspace?.role ? `${workspace.role.charAt(0).toUpperCase()}${workspace.role.slice(1)}` : ''
   const linkClass = ({ isActive }) => `rounded-full px-4 py-2 text-sm font-bold transition ${isActive ? 'bg-green-100 text-forest shadow-sm' : 'text-slate-700 hover:bg-green-50 hover:text-forest'}`
 
@@ -24,6 +24,12 @@ export default function Navbar() {
     await signOut()
     setOpen(false)
     navigate('/', { replace: true })
+  }
+
+  async function handleWorkspaceChange(event) {
+    await switchWorkspace(event.target.value)
+    setOpen(false)
+    navigate('/demo')
   }
 
   return (
@@ -43,7 +49,26 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated && workspace?.name && (
-            <span className="max-w-[220px] truncate rounded-full bg-green-50 px-4 py-2 text-xs font-bold text-forest">{workspace.name}{roleLabel ? ` · ${roleLabel}` : ''}</span>
+            workspaces?.length > 1 ? (
+              <label className="sr-only" htmlFor="workspace-switcher">Workspace</label>
+            ) : null
+          )}
+          {isAuthenticated && workspace?.name && (
+            workspaces?.length > 1 ? (
+              <select
+                id="workspace-switcher"
+                value={workspace.id}
+                onChange={handleWorkspaceChange}
+                disabled={workspaceLoading}
+                className="max-w-[260px] rounded-full border border-green-100 bg-green-50 px-4 py-2 text-xs font-bold text-forest outline-none focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:opacity-60"
+              >
+                {workspaces.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name} · {item.role.charAt(0).toUpperCase() + item.role.slice(1)}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="max-w-[220px] truncate rounded-full bg-green-50 px-4 py-2 text-xs font-bold text-forest">{workspace.name}{roleLabel ? ` · ${roleLabel}` : ''}</span>
+            )
           )}
           {isAuthenticated ? (
             <button onClick={handleSignOut} className="inline-flex items-center rounded-full border border-green-200 bg-white/80 px-4 py-2 text-sm font-bold text-forest hover:bg-green-50 focus-ring">
@@ -65,7 +90,23 @@ export default function Navbar() {
             {links.map((link) => (
               <NavLink key={link.to} to={link.to} onClick={() => setOpen(false)} className={linkClass}>{link.label}</NavLink>
             ))}
-            {isAuthenticated && workspace?.name && <p className="px-4 py-2 text-xs font-bold text-forest">Workspace: {workspace.name}{roleLabel ? ` · ${roleLabel}` : ''}</p>}
+            {isAuthenticated && workspace?.name && (
+              workspaces?.length > 1 ? (
+                <select
+                  value={workspace.id}
+                  onChange={handleWorkspaceChange}
+                  disabled={workspaceLoading}
+                  className="rounded-full border border-green-100 bg-green-50 px-4 py-2 text-sm font-bold text-forest outline-none focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:opacity-60"
+                  aria-label="Workspace"
+                >
+                  {workspaces.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name} · {item.role.charAt(0).toUpperCase() + item.role.slice(1)}</option>
+                  ))}
+                </select>
+              ) : (
+                <p className="px-4 py-2 text-xs font-bold text-forest">Workspace: {workspace.name}{roleLabel ? ` · ${roleLabel}` : ''}</p>
+              )
+            )}
             {isAuthenticated ? (
               <button onClick={handleSignOut} className="mt-2 inline-flex w-full items-center justify-center rounded-full border border-green-200 bg-white px-6 py-3 text-sm font-bold text-forest hover:bg-green-50 focus-ring">
                 <LogOut className="mr-2" size={16} /> Sign Out
