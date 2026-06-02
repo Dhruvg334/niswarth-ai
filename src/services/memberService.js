@@ -10,6 +10,18 @@ function normalizeRole(role) {
   return memberRoles.includes(role) ? role : 'reviewer'
 }
 
+function asArrayPayload(data) {
+  if (!data) return []
+  if (Array.isArray(data)) return data
+  return [data]
+}
+
+function asObjectPayload(data) {
+  if (!data) return null
+  if (Array.isArray(data)) return data[0] || null
+  return data
+}
+
 export async function getWorkspaceMembers({ organizationId }) {
   if (!isSupabaseConfigured || !organizationId) {
     return { members: [], error: null, skipped: true }
@@ -19,7 +31,7 @@ export async function getWorkspaceMembers({ organizationId }) {
     p_organization_id: organizationId,
   })
 
-  return { members: data || [], error, skipped: false }
+  return { members: asArrayPayload(data), error, skipped: false }
 }
 
 export async function addWorkspaceMember({ organizationId, email, role }) {
@@ -37,7 +49,7 @@ export async function addWorkspaceMember({ organizationId, email, role }) {
     p_role: normalizeRole(role),
   })
 
-  return { member: Array.isArray(data) ? data[0] : data, error, skipped: false }
+  return { member: asObjectPayload(data), error, skipped: false }
 }
 
 export async function updateWorkspaceMemberRole({ organizationId, membershipId, role }) {
@@ -55,7 +67,7 @@ export async function updateWorkspaceMemberRole({ organizationId, membershipId, 
     p_role: normalizeRole(role),
   })
 
-  return { member: Array.isArray(data) ? data[0] : data, error, skipped: false }
+  return { member: asObjectPayload(data), error, skipped: false }
 }
 
 export async function removeWorkspaceMember({ organizationId, membershipId }) {
