@@ -152,7 +152,7 @@ export default function WorkspaceMembersPanel({ organizationId, currentUserId, b
     <div className="space-y-6">
       <div className="rounded-2xl border border-green-100 bg-green-50/60 p-4 text-sm leading-6 text-slate-600">
         <p className="font-extrabold text-ink">Add people who already have a Niswarth AI account.</p>
-        <p className="mt-1">For this phase, ask the person to sign up first, then add their email here. Email invitations can come later.</p>
+        <p className="mt-1">For this phase, ask the person to sign up first, then add their email here. If they also have their own workspace, they can switch workspaces from the top bar.</p>
       </div>
 
       <form onSubmit={handleAddMember} className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-soft">

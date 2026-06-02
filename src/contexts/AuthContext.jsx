@@ -15,9 +15,26 @@ function withTimeout(promise, timeoutMs = 9000, message = 'The request took too 
   return Promise.race([promise, timeoutPromise]).finally(() => window.clearTimeout(timeoutId))
 }
 
+function getWorkspaceStorageKey(userId) {
+  return userId ? `niswarth-active-workspace-${userId}` : null
+}
+
+function readStoredWorkspaceId(userId) {
+  const key = getWorkspaceStorageKey(userId)
+  if (!key) return null
+  return window.localStorage.getItem(key)
+}
+
+function storeWorkspaceId(userId, workspaceId) {
+  const key = getWorkspaceStorageKey(userId)
+  if (!key || !workspaceId) return
+  window.localStorage.setItem(key, workspaceId)
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [workspace, setWorkspace] = useState(null)
+  const [workspaces, setWorkspaces] = useState([])
   const [loading, setLoading] = useState(true)
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [error, setError] = useState('')
@@ -28,11 +45,12 @@ export function AuthProvider({ children }) {
   const workspaceRequestIdRef = useRef(0)
 
   const loadWorkspace = useCallback(async (userId, options = {}) => {
-    const { preserveExisting = true, showLoading = true } = options
+    const { preserveExisting = true, showLoading = true, preferredWorkspaceId = null } = options
 
     if (!userId || !isSupabaseConfigured) {
       workspaceRef.current = null
       setWorkspace(null)
+      setWorkspaces([])
       return null
     }
 
@@ -42,8 +60,9 @@ export function AuthProvider({ children }) {
     if (showLoading && !workspaceRef.current) setWorkspaceLoading(true)
 
     try {
-      const { workspace: loadedWorkspace, error: workspaceError } = await withTimeout(
-        getUserWorkspace(userId),
+      const selectedWorkspaceId = preferredWorkspaceId || readStoredWorkspaceId(userId)
+      const { workspace: loadedWorkspace, workspaces: loadedWorkspaces = [], error: workspaceError } = await withTimeout(
+        getUserWorkspace(userId, selectedWorkspaceId),
         9000,
         'Workspace lookup is taking longer than expected. Please refresh and try again.',
       )
@@ -55,12 +74,15 @@ export function AuthProvider({ children }) {
         if (!preserveExisting) {
           workspaceRef.current = null
           setWorkspace(null)
+          setWorkspaces([])
         }
         return null
       }
 
       workspaceRef.current = loadedWorkspace
       setWorkspace(loadedWorkspace)
+      setWorkspaces(loadedWorkspaces)
+      if (loadedWorkspace?.id) storeWorkspaceId(userId, loadedWorkspace.id)
       return loadedWorkspace
     } catch (loadError) {
       if (!activeRef.current || workspaceRequestIdRef.current !== requestId) return workspaceRef.current
@@ -68,6 +90,7 @@ export function AuthProvider({ children }) {
       if (!preserveExisting) {
         workspaceRef.current = null
         setWorkspace(null)
+        setWorkspaces([])
       }
       return null
     } finally {
@@ -96,6 +119,7 @@ export function AuthProvider({ children }) {
         } else {
           workspaceRef.current = null
           setWorkspace(null)
+          setWorkspaces([])
         }
       } finally {
         if (activeRef.current) setLoading(false)
@@ -116,6 +140,7 @@ export function AuthProvider({ children }) {
         workspaceRequestIdRef.current += 1
         workspaceRef.current = null
         setWorkspace(null)
+        setWorkspaces([])
         setWorkspaceLoading(false)
         return
       }
@@ -178,6 +203,7 @@ export function AuthProvider({ children }) {
     workspaceRef.current = null
     setSession(null)
     setWorkspace(null)
+    setWorkspaces([])
     setWorkspaceLoading(false)
     return { error: null }
   }
@@ -201,11 +227,16 @@ export function AuthProvider({ children }) {
       workspaceRequestIdRef.current += 1
       workspaceRef.current = createdWorkspace
       setWorkspace(createdWorkspace)
+      setWorkspaces((currentWorkspaces) => {
+        const withoutDuplicate = currentWorkspaces.filter((item) => item.id !== createdWorkspace.id)
+        return [createdWorkspace, ...withoutDuplicate]
+      })
 
       if (sessionRef.current?.user?.id) {
+        storeWorkspaceId(sessionRef.current.user.id, createdWorkspace.id)
         window.setTimeout(() => {
           if (!activeRef.current) return
-          loadWorkspace(sessionRef.current.user.id, { preserveExisting: true, showLoading: false })
+          loadWorkspace(sessionRef.current.user.id, { preserveExisting: true, showLoading: false, preferredWorkspaceId: createdWorkspace.id })
         }, 0)
       }
 
@@ -220,7 +251,29 @@ export function AuthProvider({ children }) {
 
   async function refreshWorkspace() {
     if (!sessionRef.current?.user?.id) return null
-    return loadWorkspace(sessionRef.current.user.id, { preserveExisting: true })
+    return loadWorkspace(sessionRef.current.user.id, { preserveExisting: true, preferredWorkspaceId: workspaceRef.current?.id })
+  }
+
+  async function switchWorkspace(workspaceId) {
+    if (!sessionRef.current?.user?.id || !workspaceId || workspaceId === workspaceRef.current?.id) {
+      return { workspace: workspaceRef.current, error: null }
+    }
+
+    setError('')
+    storeWorkspaceId(sessionRef.current.user.id, workspaceId)
+    const switchedWorkspace = await loadWorkspace(sessionRef.current.user.id, {
+      preserveExisting: true,
+      showLoading: true,
+      preferredWorkspaceId: workspaceId,
+    })
+
+    if (!switchedWorkspace || switchedWorkspace.id !== workspaceId) {
+      const switchError = new Error('You do not have access to that workspace.')
+      setError(switchError.message)
+      return { workspace: null, error: switchError }
+    }
+
+    return { workspace: switchedWorkspace, error: null }
   }
 
   const value = useMemo(() => ({
@@ -228,17 +281,20 @@ export function AuthProvider({ children }) {
     session,
     user: session?.user || null,
     workspace,
+    workspaces,
     loading,
     workspaceLoading,
     error,
     isAuthenticated: Boolean(session?.user),
     hasWorkspace: Boolean(workspace?.id),
+    hasMultipleWorkspaces: workspaces.length > 1,
     signUp,
     signIn,
     signOut,
     setupWorkspace,
     refreshWorkspace,
-  }), [session, workspace, loading, workspaceLoading, error])
+    switchWorkspace,
+  }), [session, workspace, workspaces, loading, workspaceLoading, error])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
