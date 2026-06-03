@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
+import { normalizeReportStatus } from '../utils/reportWorkflow.js'
 
 function normalizeArray(value) {
   return Array.isArray(value) ? value : []
@@ -209,10 +210,13 @@ export async function updateImpactReportStatus({ reportId, status, reviewNotes =
     return { report: null, error: null, skipped: true }
   }
 
+  const normalizedStatus = normalizeReportStatus(status)
+  const safeReviewNotes = normalizeBodyText(reviewNotes)
+
   const payload = {
-    status,
-    review_notes: reviewNotes.trim() || null,
-    approved_at: status === 'approved' ? new Date().toISOString() : null,
+    status: normalizedStatus,
+    review_notes: safeReviewNotes || null,
+    approved_at: normalizedStatus === 'approved' ? new Date().toISOString() : null,
   }
 
   const { data, error } = await supabase
@@ -229,9 +233,9 @@ export async function updateImpactReportStatus({ reportId, status, reviewNotes =
   await createReportVersion({
     report: data,
     bodyText: data.edited_text || data.draft_text,
-    title: `Report ${status.replace('_', ' ')}`,
-    status,
-    reviewNotes,
+    title: `Report ${normalizedStatus.replace('_', ' ')}`,
+    status: normalizedStatus,
+    reviewNotes: safeReviewNotes,
   })
 
   return { report: data, error: null, skipped: false }

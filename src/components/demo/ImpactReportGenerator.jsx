@@ -4,20 +4,15 @@ import Button from '../common/Button.jsx'
 import { generateImpactReport } from '../../utils/generateImpactReport.js'
 import { generateAiImpactReport } from '../../services/aiReportService.js'
 import { saveImpactReportDraft, updateImpactReportDraft, updateImpactReportStatus } from '../../services/reportService.js'
-
-const statusLabels = {
-  draft: 'Draft in progress',
-  under_review: 'Sent for review',
-  approved: 'Approved',
-  needs_revision: 'Needs revision',
-}
-
-const statusStyles = {
-  draft: 'bg-slate-100 text-slate-700',
-  under_review: 'bg-blue-100 text-blue-800',
-  approved: 'bg-emerald-100 text-emerald-800',
-  needs_revision: 'bg-amber-100 text-amber-800',
-}
+import {
+  REPORT_STATUS,
+  canReviewReportDecision,
+  canSendReportForReview,
+  getReportStatusLabel,
+  getReportStatusStyle,
+  getReportWorkflowHint,
+  isReportApproved,
+} from '../../utils/reportWorkflow.js'
 
 const insightCardStyles = {
   evidence: 'border-emerald-100 bg-emerald-50/45 text-slate-700',
@@ -87,10 +82,11 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
   const [report, setReport] = useState(null)
   const [draftText, setDraftText] = useState('')
   const [savedReportId, setSavedReportId] = useState(null)
-  const [reportStatus, setReportStatus] = useState('draft')
+  const [reportStatus, setReportStatus] = useState(REPORT_STATUS.draft)
   const [reviewNotes, setReviewNotes] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [slowGeneration, setSlowGeneration] = useState(false)
 
   function resetMessages() {
     setErrorMessage('')
@@ -113,10 +109,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
     })
     setSaving(false)
 
-    if (error) {
-      throw error
-    }
-
+    if (error) throw error
     return savedReport
   }
 
@@ -128,12 +121,15 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
 
     resetMessages()
     setLoading(true)
+    setSlowGeneration(false)
     setSaving(false)
     setReport(null)
     setDraftText('')
     setSavedReportId(null)
-    setReportStatus('draft')
+    setReportStatus(REPORT_STATUS.draft)
     setReviewNotes('')
+
+    const slowTimer = window.setTimeout(() => setSlowGeneration(true), 8000)
 
     try {
       const generatedReport = await generateAiImpactReport(campaign)
@@ -149,7 +145,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
             setSuccessMessage('AI draft created and saved. Review and edit it before moving it forward.')
           }
         } catch {
-          setErrorMessage('The AI draft was created, but saving it to the database failed. Check Supabase table policies and environment variables.')
+          setErrorMessage('The AI draft was created, but saving it to the database failed. Try refreshing, then save again from the report workspace.')
         }
       }
     } catch {
@@ -161,14 +157,14 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
       if (campaign.dbBacked) {
         try {
           const savedReport = await saveGeneratedReport(fallbackReport)
-          if (savedReport?.id) {
-            setSavedReportId(savedReport.id)
-          }
+          if (savedReport?.id) setSavedReportId(savedReport.id)
         } catch {
           setErrorMessage('The AI service could not complete the request. A structured draft was prepared locally, but saving it to the database failed.')
         }
       }
     } finally {
+      window.clearTimeout(slowTimer)
+      setSlowGeneration(false)
       setLoading(false)
     }
   }
@@ -190,12 +186,12 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
     setSaving(false)
 
     if (error) {
-      setErrorMessage('Could not save the edited draft. Check Supabase update permissions for impact_reports.')
+      setErrorMessage('Could not save the edited draft. Refresh the data and try again.')
       return
     }
 
-    setReportStatus('draft')
-    setSuccessMessage('Edited draft saved successfully.')
+    setReportStatus(REPORT_STATUS.draft)
+    setSuccessMessage('Edited draft saved.')
     onReportSaved?.()
   }
 
@@ -206,14 +202,14 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
       return
     }
 
-    if (nextStatus === 'needs_revision' && reviewNotes.trim().length < 8) {
+    if (nextStatus === REPORT_STATUS.needsRevision && reviewNotes.trim().length < 8) {
       setErrorMessage('Add a short review note before marking the report as needs revision.')
       return
     }
 
     if (!savedReportId) {
       setReportStatus(nextStatus)
-      setSuccessMessage(`Report moved to ${statusLabels[nextStatus].toLowerCase()} for this session.`)
+      setSuccessMessage(`Report moved to ${getReportStatusLabel(nextStatus, { long: true }).toLowerCase()} for this session.`)
       return
     }
 
@@ -233,12 +229,12 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
     setSaving(false)
 
     if (error) {
-      setErrorMessage('Could not update the report review status. Check Supabase update policy for impact_reports.')
+      setErrorMessage('Could not update the report review status. Refresh the data and try again.')
       return
     }
 
     setReportStatus(nextStatus)
-    setSuccessMessage(`Report status updated: ${statusLabels[nextStatus]}.`)
+    setSuccessMessage(`Report status updated: ${getReportStatusLabel(nextStatus, { long: true })}.`)
     onReportSaved?.()
   }
 
@@ -249,7 +245,10 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
   }
 
   const canGenerate = Boolean(permissions.canGenerateReports) && Boolean(campaign?.updates?.length) && !loading && !saving
-  const isFinalApproved = reportStatus === 'approved'
+  const isFinalApproved = isReportApproved(reportStatus)
+  const canMoveToReview = canSendReportForReview(reportStatus, permissions)
+  const canMakeReviewDecision = canReviewReportDecision(reportStatus, permissions)
+  const workflowHint = getReportWorkflowHint(reportStatus, permissions)
   const metadata = report ? buildReportMetadata(report) : null
 
   return (
@@ -270,7 +269,12 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
       </div>
 
       <div className="mt-7 rounded-[1.5rem] border border-green-100 bg-green-50/55 p-5 sm:p-6">
-        {loading && <p className="text-sm font-semibold text-forest">Reading field updates and preparing a human-review draft...</p>}
+        {loading && (
+          <div className="space-y-2 text-sm leading-6 text-forest">
+            <p className="font-semibold">Reading field updates and preparing a human-review draft...</p>
+            {slowGeneration && <p className="text-xs font-bold text-slate-500">This is taking longer than usual. Keep this tab open while the draft is prepared.</p>}
+          </div>
+        )}
         {saving && <p className="mt-3 text-xs font-bold text-forest">Saving workflow changes...</p>}
         {!loading && !report && (
           <div className="rounded-2xl bg-white/85 p-5 text-sm leading-7 text-slate-600">
@@ -297,7 +301,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
                   <span className="w-fit rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-forest">Readiness {report.confidence}%</span>
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusStyles[reportStatus] || statusStyles.draft}`}>{statusLabels[reportStatus] || 'Draft in progress'}</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${getReportStatusStyle(reportStatus)}`}>{getReportStatusLabel(reportStatus, { long: true })}</span>
                   {campaign.dbBacked && savedReportId && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">Saved</span>}
                 </div>
               </div>
@@ -323,19 +327,20 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
             <section className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-soft sm:p-6">
               <div className="grid items-start gap-5 lg:grid-cols-[0.75fr_1.25fr]">
                 <div className="rounded-2xl border border-green-100 bg-green-50/45 px-4 py-3 text-sm leading-6 text-slate-600">
-                  <span className="font-extrabold text-forest">Human review required.</span> Check the draft before sharing it outside the organization.
+                  <span className="font-extrabold text-forest">Workflow note.</span> {workflowHint}
                 </div>
 
                 <div>
                   <label className="block text-sm font-extrabold text-ink" htmlFor="review-notes">Review notes</label>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">Add notes only when the report needs correction, missing evidence, or clarification.</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">Review notes are mainly used when a report needs correction, missing evidence, or clarification.</p>
                   <textarea
                     id="review-notes"
                     value={reviewNotes}
                     onChange={(event) => setReviewNotes(event.target.value)}
                     rows={3}
-                    placeholder="Example: Verify attendance count before external sharing."
-                    className="mt-3 w-full rounded-2xl border border-green-100 bg-green-50/40 p-4 text-sm leading-6 text-slate-700 outline-none transition focus:border-leaf focus:ring-4 focus:ring-green-100"
+                    disabled={!canMakeReviewDecision || isFinalApproved}
+                    placeholder={canMakeReviewDecision ? 'Example: Verify attendance count before external sharing.' : 'Review notes become editable when a report is under review.'}
+                    className="mt-3 w-full rounded-2xl border border-green-100 bg-green-50/40 p-4 text-sm leading-6 text-slate-700 outline-none transition focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
               </div>
@@ -350,9 +355,9 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button variant="secondary" onClick={handleCopy} className="min-w-[160px] justify-center"><Copy className="mr-2" size={18} /> Copy Draft</Button>
                   {permissions.canSaveReportDrafts && <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || isFinalApproved} className="min-w-[160px] justify-center"><Save className="mr-2" size={18} /> Save Draft</Button>}
-                  {permissions.canSendReportsForReview && <Button onClick={() => handleStatusChange('under_review')} disabled={saving || isFinalApproved} className="min-w-[190px] justify-center"><Send className="mr-2" size={18} /> Send for Review</Button>}
-                  {permissions.canReviewReports && <Button variant="secondary" onClick={() => handleStatusChange('needs_revision')} disabled={saving || isFinalApproved} className="min-w-[170px] justify-center"><RotateCcw className="mr-2" size={18} /> Needs Revision</Button>}
-                  {permissions.canReviewReports && <Button onClick={() => handleStatusChange('approved')} disabled={saving || isFinalApproved} className="min-w-[180px] justify-center"><CheckCircle2 className="mr-2" size={18} /> Approve Report</Button>}
+                  {permissions.canSendReportsForReview && <Button onClick={() => handleStatusChange(REPORT_STATUS.underReview)} disabled={saving || !canMoveToReview} className="min-w-[190px] justify-center"><Send className="mr-2" size={18} /> Send for Review</Button>}
+                  {permissions.canReviewReports && <Button variant="secondary" onClick={() => handleStatusChange(REPORT_STATUS.needsRevision)} disabled={saving || !canMakeReviewDecision} className="min-w-[170px] justify-center"><RotateCcw className="mr-2" size={18} /> Needs Revision</Button>}
+                  {permissions.canReviewReports && <Button onClick={() => handleStatusChange(REPORT_STATUS.approved)} disabled={saving || !canMakeReviewDecision} className="min-w-[180px] justify-center"><CheckCircle2 className="mr-2" size={18} /> Approve Report</Button>}
                 </div>
               </div>
             </section>
