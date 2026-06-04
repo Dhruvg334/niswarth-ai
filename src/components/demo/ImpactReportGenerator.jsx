@@ -44,10 +44,10 @@ function getEvidenceLabel(item) {
 function InsightCard({ title, items, variant = 'evidence', emptyText }) {
   const safeItems = normalizeList(items)
   return (
-    <div className={`rounded-3xl border p-5 ${insightCardStyles[variant] || insightCardStyles.evidence}`}>
-      <p className="text-sm font-extrabold text-ink">{title}</p>
+    <div className={`rounded-2xl border p-4 ${insightCardStyles[variant] || insightCardStyles.evidence}`}>
+      <p className="text-xs font-extrabold uppercase tracking-wide text-ink">{title}</p>
       {safeItems.length ? (
-        <ul className="mt-3 space-y-2 text-sm leading-6">
+        <ul className="mt-3 space-y-2 text-xs leading-5">
           {safeItems.map((item, index) => (
             <li key={`${title}-${index}`} className="flex gap-2">
               <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-55" />
@@ -56,7 +56,7 @@ function InsightCard({ title, items, variant = 'evidence', emptyText }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-3 text-sm leading-6 opacity-75">{emptyText}</p>
+        <p className="mt-3 text-xs leading-5 opacity-75">{emptyText}</p>
       )}
     </div>
   )
@@ -252,13 +252,13 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
   const metadata = report ? buildReportMetadata(report) : null
 
   return (
-    <div className="premium-card rounded-[2rem] p-6 sm:p-8 lg:p-9">
+    <div className="premium-card rounded-[2rem] p-6 sm:p-7">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
           <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-leaf">Human-reviewed reporting</p>
-          <h2 className="mt-3 display-font text-3xl font-extrabold text-ink sm:text-4xl">AI impact report workspace</h2>
+          <h2 className="mt-3 display-font text-2xl font-black text-ink sm:text-3xl">AI report workspace</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-            Turn field updates into a clear draft, verify the evidence, and move the report through human review.
+            Create a draft from field updates, verify the evidence, and move it through review.
           </p>
         </div>
         {permissions.canGenerateReports && (
@@ -268,7 +268,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
         )}
       </div>
 
-      <div className="mt-7 rounded-[1.5rem] border border-green-100 bg-green-50/55 p-5 sm:p-6">
+      <div className="mt-7 rounded-[1.5rem] border border-green-100 bg-green-50/45 p-4 sm:p-5">
         {loading && (
           <div className="space-y-2 text-sm leading-6 text-forest">
             <p className="font-semibold">Reading field updates and preparing a human-review draft...</p>
@@ -279,10 +279,10 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
         {!loading && !report && (
           <div className="rounded-2xl bg-white/85 p-5 text-sm leading-7 text-slate-600">
             {!permissions.canGenerateReports
-              ? 'Report generation is available to admins and coordinators. Reviewers can inspect and approve reports from Report History.'
+              ? 'Reviewers can approve or send back reports from Report History.'
               : campaign?.updates?.length
                 ? 'Click “Generate Draft” to prepare a first report draft from this campaign’s field updates.'
-                : 'Add field updates before generating an impact report. This keeps the report grounded in real activity.'}
+                : 'Add field updates first so the draft has evidence to use.'}
           </div>
         )}
 
@@ -294,9 +294,9 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-leaf">Editable report draft</p>
-                  <h3 className="mt-2 display-font text-2xl font-extrabold text-ink">{report.title}</h3>
+                  <h3 className="mt-2 display-font text-xl font-extrabold text-ink">{report.title}</h3>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Review the draft and keep only the details supported by field updates.
+                    Check that every claim is supported by field evidence.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -311,12 +311,12 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
                 id="impact-report-editor"
                 value={draftText}
                 onChange={(event) => setDraftText(event.target.value)}
-                rows={9}
+                rows={8}
                 disabled={isFinalApproved}
-                className="mt-5 min-h-[260px] w-full rounded-2xl border border-green-100 bg-green-50/35 p-5 text-base leading-8 text-slate-700 outline-none transition focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:bg-slate-50 disabled:text-slate-500"
+                className="mt-5 min-h-[230px] w-full rounded-2xl border border-green-100 bg-green-50/35 p-5 text-base leading-8 text-slate-700 outline-none transition focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:bg-slate-50 disabled:text-slate-500"
               />
 
-              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <InsightCard title="Evidence used" items={metadata.evidenceUsed} variant="evidence" emptyText="No evidence items were returned." />
                 <InsightCard title="Missing info" items={metadata.missingEvidence} variant="missing" emptyText="No major missing details flagged." />
                 <InsightCard title="Review cautions" items={metadata.riskFlags} variant="caution" emptyText="No specific cautions flagged." />
@@ -325,14 +325,14 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
             </section>
 
             <section className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-soft sm:p-6">
-              <div className="grid items-start gap-5 lg:grid-cols-[0.75fr_1.25fr]">
+              <div className="grid items-start gap-4 lg:grid-cols-[0.8fr_1.2fr]">
                 <div className="rounded-2xl border border-green-100 bg-green-50/45 px-4 py-3 text-sm leading-6 text-slate-600">
                   <span className="font-extrabold text-forest">Workflow note.</span> {workflowHint}
                 </div>
 
                 <div>
                   <label className="block text-sm font-extrabold text-ink" htmlFor="review-notes">Review notes</label>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">Review notes are mainly used when a report needs correction, missing evidence, or clarification.</p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">Use notes when evidence needs correction or clarification.</p>
                   <textarea
                     id="review-notes"
                     value={reviewNotes}
@@ -340,7 +340,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
                     rows={3}
                     disabled={!canMakeReviewDecision || isFinalApproved}
                     placeholder={canMakeReviewDecision ? 'Example: Verify attendance count before external sharing.' : 'Review notes become editable when a report is under review.'}
-                    className="mt-3 w-full rounded-2xl border border-green-100 bg-green-50/40 p-4 text-sm leading-6 text-slate-700 outline-none transition focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:bg-slate-50 disabled:text-slate-500"
+                    className="mt-3 w-full rounded-2xl border border-green-100 bg-green-50/40 p-3 text-sm leading-6 text-slate-700 outline-none transition focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </div>
               </div>
@@ -351,7 +351,7 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
               </div>
 
               <div className="mt-5 border-t border-green-100 pt-5">
-                <p className="text-sm font-extrabold text-ink">Report actions</p>
+                <p className="text-xs font-extrabold uppercase tracking-wide text-ink">Report actions</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button variant="secondary" onClick={handleCopy} className="min-w-[160px] justify-center"><Copy className="mr-2" size={18} /> Copy Draft</Button>
                   {permissions.canSaveReportDrafts && <Button variant="secondary" onClick={handleSaveDraft} disabled={saving || isFinalApproved} className="min-w-[160px] justify-center"><Save className="mr-2" size={18} /> Save Draft</Button>}

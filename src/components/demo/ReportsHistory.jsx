@@ -91,15 +91,15 @@ function ReportReviewActions({ report, canReviewReports, onReportStatusChanged }
 
 export default function ReportsHistory({ reports = [], canReviewReports = false, onReportStatusChanged }) {
   return (
-    <div className="premium-card rounded-[2rem] p-7">
+    <div className="premium-card rounded-[2rem] p-6">
       <div>
-        <h2 className="display-font text-3xl font-extrabold text-ink">Report history</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Track drafts, review decisions, and the latest AI generation details for this campaign.</p>
+        <h2 className="display-font text-2xl font-black text-ink">Report history</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Review drafts, decisions, and audit details for this campaign.</p>
       </div>
 
       <div className="mt-6 space-y-4">
         {reports.length === 0 ? (
-          <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-7 text-slate-600">
+          <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4 text-sm leading-6 text-slate-600">
             No reports yet. Admins and coordinators can generate a draft once field updates are available.
           </div>
         ) : (
@@ -110,7 +110,7 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
             const versions = getVersions(report)
 
             return (
-              <article key={report.id} className="rounded-2xl border border-green-100 bg-white/80 p-5 shadow-soft">
+              <article key={report.id} className="rounded-2xl border border-green-100 bg-white/85 p-4 shadow-soft">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="rounded-xl bg-green-50 p-2 text-forest"><Icon size={18} /></div>
@@ -122,7 +122,7 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
                   <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${getReportStatusStyle(report.status)}`}>{getReportStatusLabel(report.status)}</span>
                 </div>
 
-                <p className="mt-4 line-clamp-3 text-sm leading-7 text-slate-600">{text}</p>
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">{text}</p>
                 <p className="mt-3 rounded-2xl border border-green-100 bg-green-50/45 px-3 py-2 text-xs font-semibold leading-5 text-slate-600">
                   {getReportWorkflowHint(report.status, { canReviewReports })}
                 </p>
@@ -132,11 +132,11 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
                 )}
 
                 {(latestLog || versions.length > 0 || canReviewReports) && (
-                  <details className="mt-4 rounded-2xl border border-green-100 bg-green-50/45 p-4 text-sm text-slate-600">
-                    <summary className="cursor-pointer select-none text-sm font-extrabold text-forest">View audit trail</summary>
+                  <details className="mt-4 rounded-2xl border border-green-100 bg-green-50/45 p-3 text-sm text-slate-600">
+                    <summary className="cursor-pointer select-none text-sm font-extrabold text-forest">Audit trail</summary>
 
                     {latestLog && (
-                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="mt-3 grid gap-3 sm:grid-cols-3">
                         <SmallMeta label="Source" value={formatSource(latestLog.generation_source)} />
                         <SmallMeta label="Model" value={latestLog.ai_model || 'Not recorded'} />
                         <SmallMeta label="Readiness" value={Number.isFinite(Number(latestLog.confidence)) ? `${latestLog.confidence}%` : 'Not recorded'} />
@@ -144,7 +144,7 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
                     )}
 
                     {versions.length > 0 && (
-                      <div className="mt-4 rounded-2xl bg-white/80 p-4">
+                      <div className="mt-3 rounded-2xl bg-white/80 p-3">
                         <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Version history</p>
                         <div className="mt-3 space-y-2">
                           {versions.map((version) => (
