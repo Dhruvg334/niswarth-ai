@@ -74,8 +74,7 @@ export default function Contact() {
     <section className="gradient-bg pb-20 pt-24 lg:pb-24 lg:pt-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
-          eyebrow="Contact"
-          title="Contact Dhruv about Niswarth AI"
+          title="Contact the developer about Niswarth AI"
           description="Share feedback, collaboration ideas, NGO workflow questions, or technical discussion around the project."
         />
 

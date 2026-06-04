@@ -120,12 +120,11 @@ export default function Organisation() {
   }
 
   return (
-    <section className="gradient-bg pb-20 pt-20 lg:pb-24 lg:pt-24">
+    <section className="gradient-bg pb-20 pt-16 lg:pb-24 lg:pt-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <div>
-            <p className="inline-flex rounded-full border border-green-200 bg-white/90 px-4 py-2 text-sm font-bold text-forest shadow-sm">Organisation overview</p>
-            <h1 className="display-font mt-6 text-5xl font-black leading-[1] tracking-[-0.055em] text-ink md:text-6xl">{workspace.name}</h1>
+            <h1 className="display-font text-5xl font-black leading-[1] tracking-[-0.055em] text-ink md:text-6xl">{workspace.name}</h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">An information center for the selected workspace, its roles, volunteers, campaigns, and report activity.</p>
           </div>
           <div className="rounded-[2rem] border border-green-100 bg-white/90 p-6 shadow-[0_26px_80px_-54px_rgba(20,83,45,0.6)]">
@@ -159,29 +158,29 @@ export default function Organisation() {
           <MemberList title="Reviewers" members={memberGroups.reviewer || []} />
         </div>
 
-        <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_0.9fr]">
-          <section className="rounded-[2rem] border border-green-100 bg-white/90 p-6 shadow-[0_20px_65px_-50px_rgba(20,83,45,0.6)] md:p-8">
-            <div className="flex items-center gap-3 text-forest"><ClipboardCheck size={22} /><h2 className="text-xl font-black text-ink">Recent campaign activity</h2></div>
-            <div className="mt-6 space-y-3">
-              {campaigns.slice(0, 5).map((campaign) => (
-                <div key={campaign.id} className="rounded-2xl border border-green-100 bg-green-50/55 p-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="font-black text-ink">{campaign.title}</p>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-forest">{campaign.status}</span>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{campaign.location || 'No location'} · {campaign.fieldUpdates?.length || 0} updates · {campaign.reports?.length || 0} reports</p>
+        <section className="mt-12 rounded-[2rem] border border-green-100 bg-white/90 p-6 shadow-[0_20px_65px_-50px_rgba(20,83,45,0.6)] md:p-8">
+          <div className="flex items-center gap-3 text-forest"><ClipboardCheck size={22} /><h2 className="text-xl font-black text-ink">Recent campaign activity</h2></div>
+          <div className="mt-6 grid gap-3 md:grid-cols-2">
+            {campaigns.slice(0, 6).map((campaign) => (
+              <div key={campaign.id} className="rounded-2xl border border-green-100 bg-green-50/55 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-black text-ink">{campaign.title}</p>
+                  <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-bold text-forest">{campaign.status}</span>
                 </div>
-              ))}
-              {!campaigns.length && <p className="rounded-2xl bg-green-50/65 p-4 text-sm leading-6 text-slate-600">No campaigns have been created in this workspace yet.</p>}
-            </div>
-          </section>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{campaign.location || 'No location'} · {campaign.fieldUpdates?.length || 0} updates · {campaign.reports?.length || 0} reports</p>
+              </div>
+            ))}
+            {!campaigns.length && <p className="rounded-2xl bg-green-50/65 p-4 text-sm leading-6 text-slate-600">No campaigns have been created in this workspace yet.</p>}
+          </div>
+        </section>
 
-          <section className="rounded-[2rem] border border-green-100 bg-forest p-6 text-white shadow-[0_20px_65px_-50px_rgba(20,83,45,0.75)] md:p-8">
-            <div className="flex items-center gap-3"><ShieldCheck size={22} /><h2 className="text-xl font-black">What this page is for</h2></div>
-            <p className="mt-5 text-sm leading-7 text-green-50/80">This page is an information center for the selected organisation. It shows structure, roles, campaign activity, and reporting context.</p>
-            <p className="mt-4 text-sm leading-7 text-green-50/80">Member changes, role edits, and campaign operations stay inside the dashboard so this page remains clean and read-only.</p>
-          </section>
-        </div>
+        <section className="mt-8 rounded-[2rem] border border-green-100 bg-white/90 p-6 shadow-[0_20px_65px_-50px_rgba(20,83,45,0.6)] md:p-8">
+          <div className="flex items-center gap-3 text-forest"><ShieldCheck size={22} /><h2 className="text-xl font-black text-ink">What this page is for</h2></div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <p className="rounded-2xl bg-green-50/65 p-5 text-sm leading-7 text-slate-600">This page is an information center for the selected organisation. It shows structure, roles, campaign activity, and reporting context.</p>
+            <p className="rounded-2xl bg-green-50/65 p-5 text-sm leading-7 text-slate-600">Member changes, role edits, and campaign operations stay inside the dashboard so this page remains clean and read-only.</p>
+          </div>
+        </section>
       </div>
     </section>
   )

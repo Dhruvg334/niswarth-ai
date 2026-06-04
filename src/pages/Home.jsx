@@ -1,11 +1,10 @@
-import { ArrowRight, CheckCircle2, ClipboardCheck, FileText, Layers3, ShieldCheck, Users } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ClipboardCheck, FileCheck2, FileText, Layers3, MessageSquareText, ShieldCheck, Users } from 'lucide-react'
 import Button from '../components/common/Button.jsx'
 
 const workflowSteps = [
-  ['01', 'Set up the campaign', 'Create a clean record for the goal, location, status, timeline, and coordination needs.'],
-  ['02', 'Bring people and updates together', 'Assign volunteers, record field notes, and keep evidence linked to the active campaign.'],
-  ['03', 'Draft from evidence', 'Generate a structured report draft from the campaign updates, missing information, and review cautions.'],
-  ['04', 'Review before sharing', 'Coordinators send drafts for review, while reviewers approve or request revision with notes.'],
+  ['1', 'Campaign record', 'Goal, location, status, people, and reporting context stay together.'],
+  ['2', 'Field evidence', 'Updates, observations, and volunteer notes are attached to the active campaign.'],
+  ['3', 'Reviewed report', 'AI prepares a draft, while people check evidence, notes, and approval decisions.'],
 ]
 
 const productPillars = [
@@ -27,39 +26,58 @@ const productPillars = [
 ]
 
 function ProductPreview() {
+  const reviewItems = [
+    ['Evidence used', FileCheck2],
+    ['Missing info', MessageSquareText],
+    ['Risk flags', ShieldCheck],
+    ['Next actions', CheckCircle2],
+  ]
+
   return (
-    <div className="rounded-[2.25rem] border border-green-100 bg-white/90 p-4 shadow-[0_32px_90px_-56px_rgba(20,83,45,0.55)] backdrop-blur">
-      <div className="rounded-[1.75rem] border border-green-100 bg-gradient-to-br from-white via-green-50/60 to-white p-4">
-        <div className="flex items-center justify-between gap-4 border-b border-green-100 pb-4">
+    <div className="rounded-[2.25rem] border border-green-100 bg-white/92 p-4 shadow-[0_32px_90px_-56px_rgba(20,83,45,0.55)] backdrop-blur">
+      <div className="rounded-[1.75rem] border border-green-100 bg-gradient-to-br from-white via-green-50/70 to-white p-5">
+        <div className="flex items-start justify-between gap-4 border-b border-green-100 pb-5">
           <div>
-            <p className="text-xs font-bold text-slate-500">Selected campaign</p>
-            <p className="mt-1 text-base font-black text-ink">Reading Support Drive</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Selected campaign</p>
+            <p className="mt-2 text-lg font-black text-ink">Reading Support Drive</p>
+            <p className="mt-1 text-sm font-semibold text-slate-500">Delhi · Education · Coordinator review</p>
           </div>
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-forest">Under review</span>
+          <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-forest">Under review</span>
         </div>
 
-        <div className="grid gap-3 py-4 sm:grid-cols-3">
+        <div className="grid gap-3 py-5 sm:grid-cols-3">
           {[
             ['16', 'students reached'],
             ['3', 'field updates'],
             ['2', 'review notes'],
           ].map(([value, label]) => (
-            <div key={label} className="rounded-2xl bg-white p-4 shadow-[0_14px_36px_-30px_rgba(20,83,45,0.65)]">
-              <p className="text-2xl font-black tabular-nums text-forest">{value}</p>
+            <div key={label} className="rounded-2xl border border-green-100 bg-white px-4 py-4 shadow-[0_14px_36px_-30px_rgba(20,83,45,0.65)]">
+              <p className="text-3xl font-black tabular-nums text-forest">{value}</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
             </div>
           ))}
         </div>
 
-        <div className="rounded-[1.5rem] border border-green-100 bg-white p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 font-black text-ink"><FileText size={18} className="text-leaf" /> AI report draft</div>
-            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-forest">Human review required</span>
+        <div className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-[0_18px_50px_-42px_rgba(20,83,45,0.55)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-green-100 text-forest"><FileText size={20} /></span>
+              <div>
+                <p className="font-black text-ink">AI report draft</p>
+                <p className="text-xs font-semibold text-slate-500">Prepared from field updates</p>
+              </div>
+            </div>
+            <span className="w-fit rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-forest">Human review required</span>
           </div>
-          <p className="text-sm leading-6 text-slate-600">Draft prepared from field updates. Missing evidence and review cautions are visible before approval.</p>
+
+          <p className="mt-4 text-sm leading-6 text-slate-600">The draft shows evidence, gaps, review cautions, and next actions before approval.</p>
+
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {['Evidence used', 'Missing information', 'Risk flags', 'Next actions'].map((item) => (
-              <div key={item} className="rounded-2xl border border-green-100 bg-green-50/55 px-4 py-3 text-xs font-bold text-slate-700">{item}</div>
+            {reviewItems.map(([item, Icon]) => (
+              <div key={item} className="flex items-center gap-2 rounded-2xl border border-green-100 bg-green-50/55 px-4 py-3 text-xs font-bold text-slate-700">
+                <Icon size={15} className="text-forest" />
+                {item}
+              </div>
             ))}
           </div>
         </div>
@@ -72,10 +90,9 @@ export default function Home() {
   return (
     <>
       <section className="gradient-bg">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:pb-20 lg:pt-14">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:pb-20 lg:pt-16">
           <div>
-            <p className="inline-flex rounded-full border border-green-200 bg-white/90 px-4 py-2 text-sm font-bold text-forest shadow-sm">AI-assisted NGO workflow platform</p>
-            <h1 className="display-font mt-6 max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.06em] text-ink md:text-6xl lg:text-7xl">
+            <h1 className="display-font max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.06em] text-ink md:text-6xl lg:text-7xl">
               Coordinate field work. <span className="text-forest">Report with evidence.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">Niswarth AI helps NGOs manage campaigns, volunteers, field updates, and human-reviewed impact reports in one workspace.</p>
@@ -111,22 +128,25 @@ export default function Home() {
 
       <section className="warm-section py-18 lg:py-22">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:items-start">
-            <div className="lg:sticky lg:top-28">
+          <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+            <div>
               <h2 className="display-font text-4xl font-black tracking-[-0.045em] text-ink md:text-5xl">From scattered updates to a reviewed report.</h2>
-              <p className="mt-5 text-base leading-8 text-slate-600">The workflow is intentionally narrow: organize campaign evidence, draft from that evidence, and keep review authority with the team.</p>
+              <p className="mt-5 max-w-xl text-base leading-8 text-slate-600">The workflow is intentionally narrow: organize campaign evidence, draft from that evidence, and keep review authority with the team.</p>
               <div className="mt-8"><Button to="/demo" variant="secondary">Open Dashboard</Button></div>
             </div>
-            <div className="space-y-4">
-              {workflowSteps.map(([num, title, copy]) => (
-                <article key={title} className="grid gap-4 rounded-[1.75rem] border border-green-100 bg-white/88 p-5 shadow-[0_20px_55px_-44px_rgba(20,83,45,0.55)] sm:grid-cols-[88px_1fr] sm:p-6">
-                  <div className="display-font text-4xl font-black text-green-200">{num}</div>
-                  <div>
-                    <h3 className="text-xl font-black text-ink">{title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{copy}</p>
-                  </div>
-                </article>
-              ))}
+            <div className="rounded-[2rem] border border-green-100 bg-white/80 p-5 shadow-[0_24px_75px_-58px_rgba(20,83,45,0.55)] md:p-6">
+              <div className="grid gap-4">
+                {workflowSteps.map(([num, title, copy], index) => (
+                  <article key={title} className="relative grid gap-4 rounded-[1.5rem] border border-green-100 bg-white p-5 sm:grid-cols-[64px_1fr]">
+                    {index < workflowSteps.length - 1 && <span className="absolute left-[2.95rem] top-[4.8rem] hidden h-8 w-px bg-green-200 sm:block" />}
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-forest text-lg font-black text-white shadow-[0_14px_28px_-20px_rgba(20,83,45,0.75)]">{num}</div>
+                    <div>
+                      <h3 className="text-xl font-black text-ink">{title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{copy}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
         </div>
