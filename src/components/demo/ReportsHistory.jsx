@@ -2,20 +2,7 @@ import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Clock3, FileText, RotateCcw } from 'lucide-react'
 import Button from '../common/Button.jsx'
 import { updateImpactReportStatus } from '../../services/reportService.js'
-
-const statusStyles = {
-  draft: 'bg-slate-100 text-slate-700',
-  under_review: 'bg-blue-100 text-blue-800',
-  approved: 'bg-emerald-100 text-emerald-800',
-  needs_revision: 'bg-amber-100 text-amber-800',
-}
-
-const statusLabels = {
-  draft: 'Draft',
-  under_review: 'Under review',
-  approved: 'Approved',
-  needs_revision: 'Needs revision',
-}
+import { REPORT_STATUS, canReviewReportDecision, getReportStatusLabel, getReportStatusStyle, getReportWorkflowHint } from '../../utils/reportWorkflow.js'
 
 const statusIcons = {
   draft: FileText,
@@ -58,13 +45,13 @@ function ReportReviewActions({ report, canReviewReports, onReportStatusChanged }
   const [message, setMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
-  if (!canReviewReports || report.status !== 'under_review') return null
+  if (!canReviewReportDecision(report.status, { canReviewReports })) return null
 
   async function updateStatus(nextStatus) {
     setMessage('')
     setErrorMessage('')
 
-    if (nextStatus === 'needs_revision' && notes.trim().length < 8) {
+    if (nextStatus === REPORT_STATUS.needsRevision && notes.trim().length < 8) {
       setErrorMessage('Add a short review note before requesting revision.')
       return
     }
@@ -78,7 +65,7 @@ function ReportReviewActions({ report, canReviewReports, onReportStatusChanged }
       return
     }
 
-    setMessage(nextStatus === 'approved' ? 'Report approved.' : 'Report sent back for revision.')
+    setMessage(nextStatus === REPORT_STATUS.approved ? 'Report approved.' : 'Report sent back for revision.')
     onReportStatusChanged?.()
   }
 
@@ -93,8 +80,8 @@ function ReportReviewActions({ report, canReviewReports, onReportStatusChanged }
         className="mt-3 w-full rounded-2xl border border-green-100 bg-green-50/40 p-3 text-sm leading-6 text-slate-700 outline-none focus:border-leaf focus:ring-4 focus:ring-green-100"
       />
       <div className="mt-3 flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={() => updateStatus('needs_revision')} disabled={saving} className="min-w-[150px] justify-center"><RotateCcw className="mr-2" size={16} /> Needs Revision</Button>
-        <Button onClick={() => updateStatus('approved')} disabled={saving} className="min-w-[150px] justify-center"><CheckCircle2 className="mr-2" size={16} /> Approve</Button>
+        <Button variant="secondary" onClick={() => updateStatus(REPORT_STATUS.needsRevision)} disabled={saving} className="min-w-[150px] justify-center"><RotateCcw className="mr-2" size={16} /> Needs Revision</Button>
+        <Button onClick={() => updateStatus(REPORT_STATUS.approved)} disabled={saving} className="min-w-[150px] justify-center"><CheckCircle2 className="mr-2" size={16} /> Approve</Button>
       </div>
       {errorMessage && <p className="mt-3 flex gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800"><AlertCircle size={14} /> {errorMessage}</p>}
       {message && <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-800">{message}</p>}
@@ -113,7 +100,7 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
       <div className="mt-6 space-y-4">
         {reports.length === 0 ? (
           <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-7 text-slate-600">
-            No reports have been created for this campaign yet. Generate an evidence-based draft after field updates are available.
+            No reports yet. Admins and coordinators can generate a draft once field updates are available.
           </div>
         ) : (
           reports.map((report) => {
@@ -132,10 +119,13 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
                       <p className="text-xs font-semibold text-slate-500">{formatDate(report.created_at)}</p>
                     </div>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${statusStyles[report.status] || statusStyles.draft}`}>{statusLabels[report.status] || 'Draft'}</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${getReportStatusStyle(report.status)}`}>{getReportStatusLabel(report.status)}</span>
                 </div>
 
                 <p className="mt-4 line-clamp-3 text-sm leading-7 text-slate-600">{text}</p>
+                <p className="mt-3 rounded-2xl border border-green-100 bg-green-50/45 px-3 py-2 text-xs font-semibold leading-5 text-slate-600">
+                  {getReportWorkflowHint(report.status, { canReviewReports })}
+                </p>
 
                 {report.review_notes && (
                   <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-xs leading-5 text-amber-800"><span className="font-extrabold">Review note:</span> {report.review_notes}</p>
@@ -160,7 +150,7 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
                           {versions.map((version) => (
                             <div key={version.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-green-100 bg-white px-3 py-2">
                               <span className="text-sm font-bold text-ink">Version {version.version_number}</span>
-                              <span className="text-xs font-semibold text-slate-500">{statusLabels[version.status] || version.status || 'Draft'} · {formatDate(version.created_at)}</span>
+                              <span className="text-xs font-semibold text-slate-500">{getReportStatusLabel(version.status)} · {formatDate(version.created_at)}</span>
                             </div>
                           ))}
                         </div>
