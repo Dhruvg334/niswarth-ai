@@ -40,7 +40,7 @@ export default function About() {
             <div className="mt-7"><Button to="/contact" variant="secondary">Contact developer</Button></div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[1.5rem] bg-green-50/75 p-5">
+            <div className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-[0_18px_50px_-44px_rgba(20,83,45,0.55)]">
               <div className="flex items-center gap-2 text-forest"><GitBranch size={18} /><p className="font-black">Engineering focus</p></div>
               <p className="mt-3 text-sm leading-6 text-slate-600">Service-layer separation, Supabase RLS, server-side AI calls, workflow tests, and clean git phases.</p>
             </div>
@@ -54,7 +54,7 @@ export default function About() {
               <p className="mt-3 text-sm leading-6 text-slate-600">View the source code, engineering history, tests, and current README on GitHub.</p>
               <p className="mt-4 text-sm font-bold text-forest">Open GitHub repo →</p>
             </a>
-            <div className="rounded-[1.5rem] bg-green-50/75 p-5 sm:col-span-2">
+            <div className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-[0_18px_50px_-44px_rgba(20,83,45,0.55)] sm:col-span-2">
               <div className="flex items-center gap-2 text-forest"><ShieldCheck size={18} /><p className="font-black">Design focus</p></div>
               <p className="mt-3 text-sm leading-6 text-slate-600">A calm interface that keeps technical depth inside the system and shows simple decisions to the NGO user.</p>
             </div>
