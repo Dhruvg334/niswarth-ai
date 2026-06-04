@@ -386,7 +386,7 @@ export default function Demo() {
   return (
     <div className="gradient-bg">
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        <SectionHeader title="NGO workflow dashboard" description={workspace?.name ? `${workspace.name} · ${roleLabel}. Manage campaign work, field evidence, and reviewed impact reports.` : 'Manage campaign work, field evidence, and reviewed impact reports.'} />
+        <SectionHeader title="Workflow Dashboard" description={workspace?.name ? `${workspace.name} · ${roleLabel}. Manage campaign work, field evidence, and reviewed impact reports.` : 'Manage campaign work, field evidence, and reviewed impact reports.'} />
 
         <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex flex-col gap-3 rounded-[1.5rem] border border-green-100 bg-white/80 p-4 text-sm shadow-soft sm:flex-row sm:items-center sm:justify-between">
@@ -475,6 +475,8 @@ export default function Demo() {
                 <MetricCard label="Volunteers" value={globalMetrics.volunteersAssigned} helper="Assigned" compact />
                 <MetricCard label="Field Updates" value={globalMetrics.fieldUpdates} helper="Evidence items" compact />
                 <MetricCard label="Pending Reviews" value={globalMetrics.pendingApprovals} helper="Need decision" compact />
+                <MetricCard label="Approved Reports" value={globalMetrics.reportsApproved} helper="Cleared for use" compact />
+                <MetricCard label="Evidence Coverage" value={qualityMetrics.evidenceCoverage} helper="Campaigns with updates" compact />
               </div>
             </div>
 
@@ -521,6 +523,7 @@ export default function Demo() {
                   <MiniStat label="Review queue" value={qualityMetrics.reviewQueue} />
                   <MiniStat label="Needs revision" value={qualityMetrics.needsRevision} />
                   <MiniStat label="Evidence-ready" value={qualityMetrics.evidenceReadyCampaigns} />
+                  <MiniStat label="Report coverage" value={qualityMetrics.reportCoverage} />
                 </div>
               </SectionShell>
 

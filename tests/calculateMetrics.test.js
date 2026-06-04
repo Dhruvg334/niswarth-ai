@@ -88,4 +88,6 @@ test('calculateQualityMetrics reports review and evidence indicators', () => {
   assert.equal(quality.approvalRate, '50%')
   assert.equal(quality.reviewQueue, 1)
   assert.equal(quality.evidenceReadyCampaigns, 1)
+  assert.equal(quality.evidenceCoverage, '50%')
+  assert.equal(quality.reportCoverage, '50%')
 })
