@@ -100,7 +100,7 @@ export default function WorkspaceMembersPanel({ organizationId, currentUserId, b
 
     setEmail('')
     setRole('reviewer')
-    setMessage('Member added to this workspace.')
+    setMessage('Member added.')
     await loadMembers()
     onChanged?.()
   }
@@ -123,7 +123,7 @@ export default function WorkspaceMembersPanel({ organizationId, currentUserId, b
       return
     }
 
-    setMessage('Member role updated.')
+    setMessage('Role updated.')
     await loadMembers()
     onChanged?.()
   }
@@ -143,7 +143,7 @@ export default function WorkspaceMembersPanel({ organizationId, currentUserId, b
       return
     }
 
-    setMessage('Member removed from this workspace.')
+    setMessage('Member removed.')
     await loadMembers()
     onChanged?.()
   }
@@ -151,8 +151,8 @@ export default function WorkspaceMembersPanel({ organizationId, currentUserId, b
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-green-100 bg-green-50/60 p-4 text-sm leading-6 text-slate-600">
-        <p className="font-extrabold text-ink">Add people who already have a Niswarth AI account.</p>
-        <p className="mt-1">For this phase, ask the person to sign up first, then add their email here. If they also have their own workspace, they can switch workspaces from the top bar.</p>
+        <p className="font-extrabold text-ink">Add existing Niswarth AI users.</p>
+        <p className="mt-1">Ask the person to sign up first, then add their email here. They can switch workspaces from the top bar.</p>
       </div>
 
       <form onSubmit={handleAddMember} className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-soft">

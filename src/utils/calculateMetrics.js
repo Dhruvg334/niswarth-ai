@@ -1,6 +1,7 @@
 export function calculateCampaignProgress(status, updateCount, reportCount) {
   if (status === 'completed') return 100
   if (status === 'paused') return 45
+  if (status === 'cancelled') return 15
   if (status === 'planning') return Math.min(35, 15 + updateCount * 5)
   return Math.min(90, 45 + updateCount * 7 + reportCount * 8)
 }
@@ -70,12 +71,17 @@ export function calculateQualityMetrics(campaigns = []) {
   const pendingApprovals = campaigns.reduce((total, campaign) => total + campaign.metrics.pendingApprovals, 0)
   const needsRevision = campaigns.reduce((total, campaign) => total + (campaign.metrics.reportsNeedingRevision || 0), 0)
 
+  const evidenceReadyCampaigns = campaigns.filter((campaign) => campaign.metrics.fieldUpdates > 0).length
+  const campaignsWithReports = campaigns.filter((campaign) => campaign.metrics.reportsGenerated > 0).length
+
   return {
     updatesPerCampaign: campaignCount ? (fieldUpdates / campaignCount).toFixed(1) : '0.0',
     approvalRate: reportsGenerated ? `${Math.round((reportsApproved / reportsGenerated) * 100)}%` : '0%',
     reviewQueue: pendingApprovals,
     needsRevision,
-    evidenceReadyCampaigns: campaigns.filter((campaign) => campaign.metrics.fieldUpdates > 0).length,
+    evidenceReadyCampaigns,
+    evidenceCoverage: campaignCount ? `${Math.round((evidenceReadyCampaigns / campaignCount) * 100)}%` : '0%',
+    reportCoverage: campaignCount ? `${Math.round((campaignsWithReports / campaignCount) * 100)}%` : '0%',
   }
 }
 

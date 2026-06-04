@@ -60,7 +60,7 @@ export default function Navbar() {
                 value={workspace.id}
                 onChange={handleWorkspaceChange}
                 disabled={workspaceLoading}
-                className="max-w-[260px] rounded-full border border-green-100 bg-green-50 px-4 py-2 text-xs font-bold text-forest outline-none focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:opacity-60"
+                className="max-w-[240px] rounded-full border border-green-100 bg-green-50 px-4 py-2 text-xs font-bold text-forest outline-none focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:opacity-60"
               >
                 {workspaces.map((item) => (
                   <option key={item.id} value={item.id}>{item.name} · {item.role.charAt(0).toUpperCase() + item.role.slice(1)}</option>

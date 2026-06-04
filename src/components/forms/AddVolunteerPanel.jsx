@@ -7,6 +7,8 @@ const initialForm = {
   name: '',
   role: 'Field Volunteer',
   city: '',
+  phone: '',
+  email: '',
   availability: 'available',
 }
 
@@ -15,6 +17,8 @@ function validateVolunteer(form) {
   if (form.name.trim().length < 2) errors.name = 'Volunteer name is required.'
   if (form.role.trim().length < 2) errors.role = 'Role is required.'
   if (form.city.trim().length < 2) errors.city = 'City is required.'
+  if (form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = 'Enter a valid email or leave it blank.'
+  if (form.phone.trim() && form.phone.trim().length < 7) errors.phone = 'Enter a usable phone number or leave it blank.'
   if (!form.availability) errors.availability = 'Select availability.'
   return errors
 }
@@ -86,6 +90,27 @@ export default function AddVolunteerPanel({ backendReady, organizationId, onCrea
         </FormField>
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FormField label="Phone" error={errors.phone}>
+          <input
+            value={form.phone}
+            onChange={(event) => updateField('phone', event.target.value)}
+            className="focus-ring w-full rounded-2xl border border-green-100 bg-green-50/50 px-4 py-3 text-sm outline-none"
+            placeholder="Optional phone number"
+          />
+        </FormField>
+
+        <FormField label="Email" error={errors.email}>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(event) => updateField('email', event.target.value)}
+            className="focus-ring w-full rounded-2xl border border-green-100 bg-green-50/50 px-4 py-3 text-sm outline-none"
+            placeholder="Optional email address"
+          />
+        </FormField>
+      </div>
+
       <FormField label="Availability" error={errors.availability}>
         <select
           value={form.availability}
@@ -99,7 +124,7 @@ export default function AddVolunteerPanel({ backendReady, organizationId, onCrea
       </FormField>
 
       <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4 text-xs leading-5 text-slate-600">
-        This creates a reusable volunteer profile. Volunteers can then be assigned to specific campaigns with a campaign role.
+        This creates a reusable volunteer profile. Contact details are optional and stay inside the selected workspace.
       </div>
 
       {submitError && <p className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{submitError}</p>}
