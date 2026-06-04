@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, X } from 'lucide-react'
+import { Building2, LogOut, Menu, X } from 'lucide-react'
 import LogoMark from '../common/LogoMark.jsx'
 import Button from '../common/Button.jsx'
 import { useAuth } from '../../contexts/AuthContext.jsx'
@@ -8,16 +8,20 @@ import { useAuth } from '../../contexts/AuthContext.jsx'
 const links = [
   { label: 'Home', to: '/' },
   { label: 'Dashboard', to: '/demo' },
-  { label: 'Use Cases', to: '/use-cases' },
+  { label: 'How it Works', to: '/use-cases' },
   { label: 'About', to: '/about' },
   { label: 'Contact', to: '/contact' },
 ]
+
+function formatRole(role = '') {
+  return role ? `${role.charAt(0).toUpperCase()}${role.slice(1)}` : ''
+}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { isAuthenticated, workspace, workspaces, switchWorkspace, workspaceLoading, signOut } = useAuth()
-  const roleLabel = workspace?.role ? `${workspace.role.charAt(0).toUpperCase()}${workspace.role.slice(1)}` : ''
+  const roleLabel = formatRole(workspace?.role)
   const linkClass = ({ isActive }) => `rounded-full px-4 py-2 text-sm font-bold transition ${isActive ? 'bg-green-100 text-forest shadow-sm' : 'text-slate-700 hover:bg-green-50 hover:text-forest'}`
 
   async function handleSignOut() {
@@ -50,24 +54,28 @@ export default function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated && workspace?.name && (
             workspaces?.length > 1 ? (
-              <label className="sr-only" htmlFor="workspace-switcher">Workspace</label>
-            ) : null
-          )}
-          {isAuthenticated && workspace?.name && (
-            workspaces?.length > 1 ? (
-              <select
-                id="workspace-switcher"
-                value={workspace.id}
-                onChange={handleWorkspaceChange}
-                disabled={workspaceLoading}
-                className="max-w-[240px] rounded-full border border-green-100 bg-green-50 px-4 py-2 text-xs font-bold text-forest outline-none focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:opacity-60"
-              >
-                {workspaces.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name} · {item.role.charAt(0).toUpperCase() + item.role.slice(1)}</option>
-                ))}
-              </select>
+              <>
+                <label className="sr-only" htmlFor="workspace-switcher">Workspace</label>
+                <select
+                  id="workspace-switcher"
+                  value={workspace.id}
+                  onChange={handleWorkspaceChange}
+                  disabled={workspaceLoading}
+                  className="max-w-[220px] rounded-full border border-green-100 bg-green-50 px-4 py-2 text-xs font-bold text-forest outline-none focus:border-leaf focus:ring-4 focus:ring-green-100 disabled:opacity-60"
+                >
+                  {workspaces.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name} · {formatRole(item.role)}</option>
+                  ))}
+                </select>
+                <Link to="/organisation" className="inline-flex items-center rounded-full border border-green-100 bg-white/85 px-3 py-2 text-xs font-bold text-forest hover:bg-green-50 focus-ring" title="Organisation overview">
+                  <Building2 className="mr-1.5" size={15} /> Overview
+                </Link>
+              </>
             ) : (
-              <span className="max-w-[220px] truncate rounded-full bg-green-50 px-4 py-2 text-xs font-bold text-forest">{workspace.name}{roleLabel ? ` · ${roleLabel}` : ''}</span>
+              <Link to="/organisation" className="inline-flex max-w-[240px] items-center rounded-full bg-green-50 px-4 py-2 text-xs font-bold text-forest hover:bg-green-100 focus-ring">
+                <Building2 className="mr-1.5 shrink-0" size={15} />
+                <span className="truncate">{workspace.name}{roleLabel ? ` · ${roleLabel}` : ''}</span>
+              </Link>
             )
           )}
           {isAuthenticated ? (
@@ -100,12 +108,15 @@ export default function Navbar() {
                   aria-label="Workspace"
                 >
                   {workspaces.map((item) => (
-                    <option key={item.id} value={item.id}>{item.name} · {item.role.charAt(0).toUpperCase() + item.role.slice(1)}</option>
+                    <option key={item.id} value={item.id}>{item.name} · {formatRole(item.role)}</option>
                   ))}
                 </select>
               ) : (
                 <p className="px-4 py-2 text-xs font-bold text-forest">Workspace: {workspace.name}{roleLabel ? ` · ${roleLabel}` : ''}</p>
               )
+            )}
+            {isAuthenticated && (
+              <NavLink to="/organisation" onClick={() => setOpen(false)} className={linkClass}>Organisation</NavLink>
             )}
             {isAuthenticated ? (
               <button onClick={handleSignOut} className="mt-2 inline-flex w-full items-center justify-center rounded-full border border-green-200 bg-white px-6 py-3 text-sm font-bold text-forest hover:bg-green-50 focus-ring">

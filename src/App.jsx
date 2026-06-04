@@ -6,6 +6,7 @@ import Demo from './pages/Demo.jsx'
 import UseCasesPage from './pages/UseCasesPage.jsx'
 import About from './pages/About.jsx'
 import Contact from './pages/Contact.jsx'
+import Organisation from './pages/Organisation.jsx'
 import Login from './pages/Login.jsx'
 import Signup from './pages/Signup.jsx'
 import WorkspaceSetup from './pages/WorkspaceSetup.jsx'
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/use-cases" element={<UseCasesPage />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/organisation" element={<ProtectedRoute><Organisation /></ProtectedRoute>} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/workspace-setup" element={<ProtectedRoute requireWorkspace={false}><WorkspaceSetup /></ProtectedRoute>} />
