@@ -4,6 +4,7 @@ import SectionHeader from '../components/common/SectionHeader.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
 import Button from '../components/common/Button.jsx'
 import SlideOver from '../components/common/SlideOver.jsx'
+import InfoHint from '../components/common/InfoHint.jsx'
 import CampaignSelector from '../components/demo/CampaignSelector.jsx'
 import ImpactReportGenerator from '../components/demo/ImpactReportGenerator.jsx'
 import ReportsHistory from '../components/demo/ReportsHistory.jsx'
@@ -47,9 +48,9 @@ function roleInfoFor(role) {
 
 function MiniStat({ label, value }) {
   return (
-    <div className="rounded-2xl border border-green-100 bg-green-50/60 p-4">
+    <div className="rounded-2xl border border-green-100 bg-green-50/60 px-4 py-3">
       <p className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 display-font text-2xl font-black text-forest">{value}</p>
+      <p className="mt-2 display-font text-2xl font-black leading-none text-forest">{value}</p>
     </div>
   )
 }
@@ -180,7 +181,7 @@ export default function Demo() {
 
   return (
     <div className="gradient-bg">
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description={workspace?.name ? `${workspace.name} · ${roleLabel}. Manage campaign work, field evidence, and reviewed impact reports.` : 'Manage campaign work, field evidence, and reviewed impact reports.'} />
 
         <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -254,19 +255,22 @@ export default function Demo() {
 
         {!loading && campaigns.length > 0 && campaign && (
           <>
-            <div className="mt-14">
+            <div className="mt-10">
               <CampaignSelector campaigns={campaigns} selectedId={selectedId} onSelect={setSelectedId} />
             </div>
 
-            <div className="mt-8 grid gap-5 lg:grid-cols-[1.05fr_1.95fr]">
-              <div className="premium-card rounded-[2rem] p-6">
-                <p className="text-xs font-extrabold uppercase tracking-wide text-leaf">Your working mode</p>
-                <h2 className="mt-2 display-font text-2xl font-black text-ink">{roleInfo.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{roleInfo.description}</p>
-                <p className="mt-4 rounded-2xl border border-green-100 bg-green-50/70 p-3 text-xs font-bold leading-5 text-forest">{roleInfo.next}</p>
+            <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_2fr] lg:items-start">
+              <div className="premium-card rounded-[1.75rem] p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-leaf">Your working mode</p>
+                  <InfoHint label="This card shows what your current role can do in the selected workspace." />
+                </div>
+                <h2 className="mt-2 display-font text-xl font-black text-ink">{roleInfo.title}</h2>
+                <p className="mt-1.5 text-sm leading-6 text-slate-600">{roleInfo.description}</p>
+                <p className="mt-3 rounded-2xl border border-green-100 bg-green-50/70 px-3 py-2 text-xs font-bold leading-5 text-forest">{roleInfo.next}</p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Campaigns" value={globalMetrics.activeCampaigns} helper="Active now" compact />
                 <MetricCard label="Volunteers" value={globalMetrics.volunteersAssigned} helper="Assigned" compact />
                 <MetricCard label="Field Updates" value={globalMetrics.fieldUpdates} helper="Evidence items" compact />
@@ -275,18 +279,21 @@ export default function Demo() {
             </div>
 
             {permissions.canManageVolunteers && (
-              <div className="mt-8 premium-card rounded-[2rem] p-6">
+              <div className="mt-7 premium-card rounded-[1.75rem] p-5">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
                     <div className="rounded-2xl bg-green-100 p-3 text-forest"><Users size={20} /></div>
                     <div>
-                      <h2 className="display-font text-2xl font-black text-ink">Volunteer coordination</h2>
-                      <p className="mt-1 text-sm text-slate-600">Create profiles, check availability, and assign people to campaign work.</p>
+                      <div className="flex items-center gap-2">
+                        <h2 className="display-font text-xl font-black text-ink">Volunteer coordination</h2>
+                        <InfoHint align="left" label="Create volunteer profiles once, then assign available people to campaign work." />
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">Create profiles, check availability, and assign people.</p>
                     </div>
                   </div>
                   <Button variant="secondary" onClick={() => setVolunteerOpen(true)}><UserPlus className="mr-2" size={18} /> Add Volunteer</Button>
                 </div>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <MiniStat label="Total volunteers" value={volunteerMetrics.totalVolunteers} />
                   <MiniStat label="Free profiles" value={volunteerMetrics.unassignedVolunteers} />
                   <MiniStat label="Available now" value={volunteerMetrics.availableVolunteers} />
@@ -295,11 +302,11 @@ export default function Demo() {
               </div>
             )}
 
-            <div className="mt-8 grid gap-8 lg:grid-cols-3">
-              <div className="premium-card rounded-[2rem] p-7 lg:col-span-1">
+            <div className="mt-7 grid gap-6 lg:grid-cols-3 lg:items-start">
+              <div className="premium-card rounded-[1.75rem] p-6 lg:col-span-1 lg:self-start">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h2 className="display-font text-2xl font-black text-ink">Campaign overview</h2>
+                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Campaign overview</h2><InfoHint label="Basic campaign details. Admins can edit these without removing volunteers, updates, or reports." /></div>
                     <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{campaign.type} · {roleLabel}</p>
                   </div>
                   {permissions.canEditCampaigns && (
@@ -322,7 +329,7 @@ export default function Demo() {
                     </div>
                   )}
                 </div>
-                <div className="mt-6 space-y-3 text-sm text-slate-600">
+                <div className="mt-5 space-y-3 text-sm text-slate-600">
                   <div className="rounded-2xl border border-green-100 bg-green-50/55 p-4">
                     <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Campaign</p>
                     <p className="mt-1 font-bold text-ink">{campaign.title}</p>
@@ -345,17 +352,17 @@ export default function Demo() {
                 <p className="mt-3 text-xs font-medium text-slate-500">Progress calculated from campaign status, field updates, volunteers, and report activity.</p>
               </div>
 
-              <div className="premium-card rounded-[2rem] p-7 lg:col-span-2">
+              <div className="premium-card rounded-[1.75rem] p-6 lg:col-span-2 lg:self-start">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="display-font text-2xl font-black text-ink">Assigned volunteers</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">People connected to this campaign and the role they play in the workflow.</p>
+                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Assigned volunteers</h2><InfoHint label="People linked to this campaign and the role they play in field work." /></div>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">People connected to this campaign.</p>
                   </div>
                   {permissions.canManageVolunteers && <Button variant="secondary" onClick={() => setAssignOpen(true)}><Users className="mr-2" size={18} /> Assign Volunteer</Button>}
                 </div>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {campaign.volunteers.length > 0 ? campaign.volunteers.map((volunteer) => (
-                    <div key={volunteer.id || `${volunteer.name}-${volunteer.assignmentRole}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                    <div key={volunteer.id || `${volunteer.name}-${volunteer.assignmentRole}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="font-bold text-ink">{volunteer.name}</p>
@@ -380,22 +387,22 @@ export default function Demo() {
               </div>
             </div>
 
-            <div className="mt-8">
+            <div className="mt-7">
               <ImpactReportGenerator campaign={campaign} organizationId={workspaceId} permissions={permissions} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
             </div>
 
-            <div className="mt-8 grid gap-8 xl:grid-cols-2">
-              <div className="premium-card rounded-[2rem] p-7">
+            <div className="mt-7 grid gap-6 xl:grid-cols-2 xl:items-start">
+              <div className="premium-card rounded-[1.75rem] p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="display-font text-2xl font-black text-ink">Field updates</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">Field notes used as report evidence.</p>
+                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Field updates</h2><InfoHint label="Field notes are the evidence used for report drafts. Add specific, verified updates before generating reports." /></div>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">Field notes used as report evidence.</p>
                   </div>
                   {permissions.canAddFieldUpdates && <Button variant="secondary" onClick={() => setUpdateOpen(true)}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>}
                 </div>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                   {campaign.fieldUpdates?.length > 0 ? campaign.fieldUpdates.map((update, index) => (
-                    <div key={update.id || `${update.update_text}-${index}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                    <div key={update.id || `${update.update_text}-${index}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-xs font-extrabold text-leaf">Update {index + 1}</p>
                         <p className="text-xs font-semibold text-slate-500">{update.location || campaign.location}</p>
@@ -411,12 +418,12 @@ export default function Demo() {
               <ReportsHistory reports={campaign.reports || []} canReviewReports={permissions.canReviewReports} onReportStatusChanged={() => loadCampaigns({ preserveSelection: true })} />
             </div>
 
-            <div className="mt-8 premium-card rounded-[2rem] p-7">
+            <div className="mt-7 premium-card rounded-[1.75rem] p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex items-start gap-3">
                   <div className="rounded-2xl bg-green-100 p-3 text-forest"><Activity size={20} /></div>
                   <div>
-                    <h2 className="display-font text-2xl font-black text-ink">Workflow quality</h2>
+                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Workflow quality</h2><InfoHint label="Quick indicators for evidence depth and review follow-through across the workspace." /></div>
                     <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
                       Quick indicators for evidence depth and review follow-through.
                     </p>
@@ -424,7 +431,7 @@ export default function Demo() {
                 </div>
                 <p className="rounded-full bg-amber-50 px-4 py-2 text-xs font-extrabold text-amber-800">AI drafts remain human-reviewed</p>
               </div>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <MiniStat label="Updates / campaign" value={qualityMetrics.updatesPerCampaign} />
                 <MiniStat label="Approval rate" value={qualityMetrics.approvalRate} />
                 <MiniStat label="Review queue" value={qualityMetrics.reviewQueue} />

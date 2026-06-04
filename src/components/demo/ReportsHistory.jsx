@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Clock3, FileText, RotateCcw } from 'lucide-react'
 import Button from '../common/Button.jsx'
+import InfoHint from '../common/InfoHint.jsx'
 import { updateImpactReportStatus } from '../../services/reportService.js'
 import { REPORT_STATUS, canReviewReportDecision, getReportStatusLabel, getReportStatusStyle, getReportWorkflowHint } from '../../utils/reportWorkflow.js'
 
@@ -91,13 +92,16 @@ function ReportReviewActions({ report, canReviewReports, onReportStatusChanged }
 
 export default function ReportsHistory({ reports = [], canReviewReports = false, onReportStatusChanged }) {
   return (
-    <div className="premium-card rounded-[2rem] p-6">
-      <div>
-        <h2 className="display-font text-2xl font-black text-ink">Report history</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Review drafts, decisions, and audit details for this campaign.</p>
+    <div className="premium-card rounded-[1.75rem] p-6 xl:self-start">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="display-font text-xl font-black text-ink">Report history</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Drafts, decisions, and audit details.</p>
+        </div>
+        <InfoHint label="Reports move from draft to review, then approval or revision. Audit trail keeps the generation and version details collapsed until needed." />
       </div>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-4 space-y-3">
         {reports.length === 0 ? (
           <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4 text-sm leading-6 text-slate-600">
             No reports yet. Admins and coordinators can generate a draft once field updates are available.
@@ -128,11 +132,11 @@ export default function ReportsHistory({ reports = [], canReviewReports = false,
                 </p>
 
                 {report.review_notes && (
-                  <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-xs leading-5 text-amber-800"><span className="font-extrabold">Review note:</span> {report.review_notes}</p>
+                  <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-xs leading-5 text-amber-800"><span className="font-extrabold">Review note:</span> {report.review_notes}</p>
                 )}
 
                 {(latestLog || versions.length > 0 || canReviewReports) && (
-                  <details className="mt-4 rounded-2xl border border-green-100 bg-green-50/45 p-3 text-sm text-slate-600">
+                  <details className="mt-3 rounded-2xl border border-green-100 bg-green-50/45 p-3 text-sm text-slate-600">
                     <summary className="cursor-pointer select-none text-sm font-extrabold text-forest">Audit trail</summary>
 
                     {latestLog && (
