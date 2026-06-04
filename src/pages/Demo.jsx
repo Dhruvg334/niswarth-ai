@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Database, FilePlus2, Plus, RefreshCw, ShieldCheck, Trash2, UserCog, UserPlus, Users, WifiOff } from 'lucide-react'
+import { Activity, BriefcaseBusiness, Database, FilePlus2, FolderOpen, Plus, RefreshCw, ShieldCheck, Trash2, UserCog, UserPlus, Users, WifiOff } from 'lucide-react'
 import SectionHeader from '../components/common/SectionHeader.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
 import Button from '../components/common/Button.jsx'
@@ -19,33 +19,6 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { calculateGlobalMetrics, calculateQualityMetrics, calculateVolunteerMetrics } from '../utils/calculateMetrics.js'
 import { getRoleLabel, getWorkspacePermissions } from '../utils/permissions.js'
 
-const roleGuidance = {
-  admin: {
-    title: 'Admin workspace',
-    description: 'Manage campaigns, members, reports, and review decisions for this NGO workspace.',
-    next: 'Set up campaigns, assign people, and keep final approvals moving.',
-  },
-  coordinator: {
-    title: 'Coordinator view',
-    description: 'Capture field updates, manage volunteers, and prepare drafts for review.',
-    next: 'Add field evidence first, then send report drafts for review.',
-  },
-  reviewer: {
-    title: 'Reviewer view',
-    description: 'Check submitted reports, add review notes, and approve or send back for revision.',
-    next: 'Open Report History to review reports waiting for a decision.',
-  },
-  viewer: {
-    title: 'Workspace view',
-    description: 'Review campaign activity and report history for this workspace.',
-    next: 'Ask an admin if you need a different role.',
-  },
-}
-
-function roleInfoFor(role) {
-  return roleGuidance[role] || roleGuidance.viewer
-}
-
 function MiniStat({ label, value }) {
   return (
     <div className="rounded-2xl border border-green-100 bg-green-50/60 px-4 py-3">
@@ -55,12 +28,236 @@ function MiniStat({ label, value }) {
   )
 }
 
+function SectionShell({ children, className = '' }) {
+  return <div className={`premium-card rounded-[1.75rem] p-5 sm:p-6 ${className}`}>{children}</div>
+}
+
+function CampaignOverview({ campaign, roleLabel, permissions, onSwitchCampaign, onEdit, onDelete, deleting }) {
+  return (
+    <SectionShell className="h-full">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="display-font text-2xl font-black text-ink">Campaign overview</h2>
+            <InfoHint label="The active campaign for the dashboard. Switch campaigns when you want to view another workstream." />
+          </div>
+          <p className="mt-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">{campaign.type} · {roleLabel}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onSwitchCampaign}
+            className="inline-flex items-center justify-center rounded-full border border-green-200 bg-white px-4 py-2 text-xs font-extrabold text-forest transition hover:bg-green-50"
+          >
+            <FolderOpen className="mr-2" size={14} /> Switch campaign
+          </button>
+          {permissions.canEditCampaigns && (
+            <>
+              <button
+                type="button"
+                onClick={onEdit}
+                className="inline-flex items-center justify-center rounded-full border border-green-200 bg-white px-4 py-2 text-xs font-extrabold text-forest transition hover:bg-green-50"
+              >
+                Edit details
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+                className="inline-flex items-center justify-center rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Trash2 className="mr-2" size={14} /> {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-green-100 bg-green-50/55 p-4 sm:col-span-2">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Campaign</p>
+          <p className="mt-1 font-bold leading-6 text-ink">{campaign.title}</p>
+        </div>
+        <div className="rounded-2xl border border-green-100 bg-white/80 p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Location</p>
+          <p className="mt-1 font-bold text-ink">{campaign.location}</p>
+        </div>
+        <div className="rounded-2xl border border-green-100 bg-white/80 p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Status</p>
+          <p className="mt-1 font-bold text-ink">{campaign.status}</p>
+        </div>
+        {campaign.goal && (
+          <p className="rounded-2xl border border-green-100 bg-white/80 p-4 leading-6 sm:col-span-2">
+            <span className="block text-xs font-extrabold uppercase tracking-wide text-slate-500">Goal</span>
+            <span className="mt-1 block text-sm text-slate-700">{campaign.goal}</span>
+          </p>
+        )}
+      </div>
+
+      <div className="mt-5 h-2.5 rounded-full bg-green-100">
+        <div className="h-2.5 rounded-full bg-leaf" style={{ width: `${campaign.completion}%` }} />
+      </div>
+      <p className="mt-3 text-xs font-medium leading-5 text-slate-500">Progress combines status, field updates, volunteers, and report activity.</p>
+    </SectionShell>
+  )
+}
+
+function VolunteerPoolPanel({ volunteers, campaigns, selectedCampaignId, volunteerMetrics, permissions, onAddVolunteer, onAssignVolunteer }) {
+  const assignmentsByVolunteer = new Map()
+  campaigns.forEach((campaign) => {
+    campaign.volunteers?.forEach((volunteer) => {
+      const key = volunteer.id || volunteer.name
+      const current = assignmentsByVolunteer.get(key) || []
+      current.push({ campaignId: campaign.id, title: campaign.title, role: volunteer.assignmentRole })
+      assignmentsByVolunteer.set(key, current)
+    })
+  })
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <MiniStat label="Total profiles" value={volunteerMetrics.totalVolunteers} />
+        <MiniStat label="Available now" value={volunteerMetrics.availableVolunteers} />
+        <MiniStat label="Free profiles" value={volunteerMetrics.unassignedVolunteers} />
+        <MiniStat label="Can assign here" value={volunteerMetrics.assignableToSelectedCampaign} />
+      </div>
+
+      {permissions.canManageVolunteers && (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button onClick={onAssignVolunteer} className="w-full sm:w-auto"><Users className="mr-2" size={18} /> Assign to campaign</Button>
+          <Button variant="secondary" onClick={onAddVolunteer} className="w-full sm:w-auto"><UserPlus className="mr-2" size={18} /> Add profile</Button>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {volunteers.length > 0 ? volunteers.map((volunteer) => {
+          const assignments = assignmentsByVolunteer.get(volunteer.id || volunteer.name) || []
+          const assignedHere = assignments.some((assignment) => assignment.campaignId === selectedCampaignId)
+          return (
+            <div key={volunteer.id || volunteer.name} className="rounded-[1.25rem] border border-green-100 bg-green-50/60 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-extrabold text-ink">{volunteer.name}</p>
+                  <p className="mt-1 text-sm text-slate-600">{volunteer.role}</p>
+                  {volunteer.city && <p className="mt-1 text-xs font-bold text-slate-500">{volunteer.city}</p>}
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${assignedHere ? 'bg-green-100 text-forest' : 'bg-white text-slate-500'}`}>
+                  {assignedHere ? 'Assigned here' : volunteer.availabilityLabel || volunteer.availability || 'Profile'}
+                </span>
+              </div>
+              <div className="mt-3 border-t border-green-100 pt-3">
+                {assignments.length > 0 ? (
+                  <div className="space-y-2">
+                    {assignments.slice(0, 3).map((assignment) => (
+                      <p key={`${assignment.campaignId}-${assignment.role}`} className="text-xs font-semibold leading-5 text-slate-600">
+                        {assignment.title} · {assignment.role}
+                      </p>
+                    ))}
+                    {assignments.length > 3 && <p className="text-xs font-bold text-slate-500">+{assignments.length - 3} more assignment{assignments.length - 3 > 1 ? 's' : ''}</p>}
+                  </div>
+                ) : (
+                  <p className="text-xs font-semibold text-slate-500">Not assigned to any campaign yet.</p>
+                )}
+              </div>
+            </div>
+          )
+        }) : (
+          <div className="rounded-[1.25rem] border border-green-100 bg-green-50/60 p-5 text-sm leading-6 text-slate-600">
+            No volunteer profiles yet. Add profiles first, then assign them to campaign work.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AssignedVolunteers({ campaign, permissions, onOpenVolunteerDrawer }) {
+  const updates = campaign.fieldUpdates || []
+
+  return (
+    <SectionShell className="h-full">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="display-font text-2xl font-black text-ink">Assigned volunteers</h2>
+            <InfoHint label="People currently linked to this campaign, with the number of updates connected to each name." />
+          </div>
+          <p className="mt-1 text-sm leading-6 text-slate-600">People active on this campaign.</p>
+        </div>
+        {permissions.canManageVolunteers && <Button variant="secondary" onClick={onOpenVolunteerDrawer}><Users className="mr-2" size={18} /> Manage</Button>}
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {campaign.volunteers.length > 0 ? campaign.volunteers.map((volunteer) => {
+          const updateCount = updates.filter((update) => (update.submitted_by || '').trim().toLowerCase() === volunteer.name.trim().toLowerCase()).length
+          return (
+            <div key={volunteer.id || `${volunteer.name}-${volunteer.assignmentRole}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-ink">{volunteer.name}</p>
+                  <p className="mt-1 text-sm text-slate-600">{volunteer.assignmentRole}</p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-forest">{volunteer.availabilityLabel}</span>
+              </div>
+              <p className="mt-3 text-xs font-semibold text-slate-500">Profile role: {volunteer.role}</p>
+              {volunteer.city && <p className="mt-1 text-xs font-semibold text-slate-500">{volunteer.city}</p>}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600">{updateCount} update{updateCount === 1 ? '' : 's'}</span>
+                {volunteer.assignmentCount > 1 && (
+                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-500">
+                    Also in {volunteer.assignmentCount - 1} other campaign{volunteer.assignmentCount - 1 > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        }) : (
+          <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-6 text-slate-600 sm:col-span-2">
+            No volunteers assigned yet. Admins and coordinators can manage the volunteer pool and assign people to this campaign.
+          </div>
+        )}
+      </div>
+    </SectionShell>
+  )
+}
+
+function FieldUpdates({ campaign, permissions, onAddUpdate }) {
+  return (
+    <SectionShell className="h-full">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="display-font text-2xl font-black text-ink">Field updates</h2>
+            <InfoHint label="Field notes are the evidence used for report drafts. Add specific, verified updates before generating reports." />
+          </div>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Evidence notes for this campaign.</p>
+        </div>
+        {permissions.canAddFieldUpdates && <Button variant="secondary" onClick={onAddUpdate}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>}
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {campaign.fieldUpdates?.length > 0 ? campaign.fieldUpdates.map((update, index) => (
+          <div key={update.id || `${update.update_text}-${index}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-extrabold text-leaf">Update {index + 1}</p>
+              <p className="text-xs font-semibold text-slate-500">{update.location || campaign.location}</p>
+            </div>
+            <p className="mt-2 text-sm leading-7 text-slate-700">{update.update_text}</p>
+            {update.submitted_by && <p className="mt-3 text-xs font-semibold text-slate-500">Submitted by {update.submitted_by}</p>}
+          </div>
+        )) : (
+          <p className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-6 text-slate-600">No field updates added yet. Report generation should be based on field evidence.</p>
+        )}
+      </div>
+    </SectionShell>
+  )
+}
+
 export default function Demo() {
   const { workspace, user, refreshWorkspace } = useAuth()
   const workspaceId = workspace?.id || null
   const workspaceRole = workspace?.role || 'viewer'
   const roleLabel = getRoleLabel(workspaceRole)
-  const roleInfo = roleInfoFor(workspaceRole)
   const permissions = useMemo(() => getWorkspacePermissions(workspaceRole), [workspaceRole])
   const [campaigns, setCampaigns] = useState([])
   const [volunteers, setVolunteers] = useState([])
@@ -68,6 +265,8 @@ export default function Demo() {
   const [source, setSource] = useState('loading')
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [campaignDrawerOpen, setCampaignDrawerOpen] = useState(false)
+  const [volunteerPoolOpen, setVolunteerPoolOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [updateOpen, setUpdateOpen] = useState(false)
@@ -86,8 +285,8 @@ export default function Demo() {
     setSource(result.source)
     setErrorMessage(result.error?.message || '')
     setSelectedId((currentId) => {
-      if (preferredId && result.campaigns.some((campaign) => campaign.id === preferredId)) return preferredId
-      if (preserveSelection && currentId && result.campaigns.some((campaign) => campaign.id === currentId)) return currentId
+      if (preferredId && result.campaigns.some((item) => item.id === preferredId)) return preferredId
+      if (preserveSelection && currentId && result.campaigns.some((item) => item.id === currentId)) return currentId
       return result.campaigns[0]?.id || null
     })
     setLoading(false)
@@ -179,10 +378,15 @@ export default function Demo() {
     await loadCampaigns({ preserveSelection: false })
   }
 
+  function selectCampaignFromDrawer(campaignId) {
+    setSelectedId(campaignId)
+    setCampaignDrawerOpen(false)
+  }
+
   return (
     <div className="gradient-bg">
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <SectionHeader eyebrow="Workflow dashboard" title="NGO workflow dashboard" description={workspace?.name ? `${workspace.name} · ${roleLabel}. Manage campaign work, field evidence, and reviewed impact reports.` : 'Manage campaign work, field evidence, and reviewed impact reports.'} />
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <SectionHeader title="NGO workflow dashboard" description={workspace?.name ? `${workspace.name} · ${roleLabel}. Manage campaign work, field evidence, and reviewed impact reports.` : 'Manage campaign work, field evidence, and reviewed impact reports.'} />
 
         <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="flex flex-col gap-3 rounded-[1.5rem] border border-green-100 bg-white/80 p-4 text-sm shadow-soft sm:flex-row sm:items-center sm:justify-between">
@@ -242,35 +446,31 @@ export default function Demo() {
         )}
 
         {loading && (
-          <div className="mt-14 premium-card rounded-[2rem] p-8 text-center text-slate-600">
+          <div className="mt-12 premium-card rounded-[2rem] p-8 text-center text-slate-600">
             Loading workflow records...
           </div>
         )}
 
         {!loading && campaigns.length === 0 && (
-          <div className="mt-14 premium-card rounded-[2rem] p-8 text-center text-slate-600">
+          <div className="mt-12 premium-card rounded-[2rem] p-8 text-center text-slate-600">
             No campaigns yet. Admins can create the first campaign to start the workflow.
           </div>
         )}
 
         {!loading && campaigns.length > 0 && campaign && (
           <>
-            <div className="mt-10">
-              <CampaignSelector campaigns={campaigns} selectedId={selectedId} onSelect={setSelectedId} />
-            </div>
+            <div className="mt-10 grid gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
+              <CampaignOverview
+                campaign={campaign}
+                roleLabel={roleLabel}
+                permissions={permissions}
+                onSwitchCampaign={() => setCampaignDrawerOpen(true)}
+                onEdit={() => setEditOpen(true)}
+                onDelete={handleDeleteCampaign}
+                deleting={deletingCampaignId === campaign.id}
+              />
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_2fr] lg:items-start">
-              <div className="premium-card rounded-[1.75rem] p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-leaf">Your working mode</p>
-                  <InfoHint label="This card shows what your current role can do in the selected workspace." />
-                </div>
-                <h2 className="mt-2 display-font text-xl font-black text-ink">{roleInfo.title}</h2>
-                <p className="mt-1.5 text-sm leading-6 text-slate-600">{roleInfo.description}</p>
-                <p className="mt-3 rounded-2xl border border-green-100 bg-green-50/70 px-3 py-2 text-xs font-bold leading-5 text-forest">{roleInfo.next}</p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <MetricCard label="Campaigns" value={globalMetrics.activeCampaigns} helper="Active now" compact />
                 <MetricCard label="Volunteers" value={globalMetrics.volunteersAssigned} helper="Assigned" compact />
                 <MetricCard label="Field Updates" value={globalMetrics.fieldUpdates} helper="Evidence items" compact />
@@ -279,169 +479,78 @@ export default function Demo() {
             </div>
 
             {permissions.canManageVolunteers && (
-              <div className="mt-7 premium-card rounded-[1.75rem] p-5">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-2xl bg-green-100 p-3 text-forest"><Users size={20} /></div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="display-font text-xl font-black text-ink">Volunteer coordination</h2>
-                        <InfoHint align="left" label="Create volunteer profiles once, then assign available people to campaign work." />
-                      </div>
-                      <p className="mt-1 text-sm text-slate-600">Create profiles, check availability, and assign people.</p>
+              <div className="mt-6 flex flex-col gap-4 rounded-[1.5rem] border border-green-100 bg-white/80 p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-green-100 p-3 text-forest"><BriefcaseBusiness size={20} /></div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="display-font text-xl font-black text-ink">Volunteer coordination</h2>
+                      <InfoHint align="left" label="Open the volunteer pool to see profiles, availability, and current assignments." />
                     </div>
+                    <p className="mt-1 text-sm text-slate-600">Manage volunteer profiles and assignments from one drawer.</p>
                   </div>
-                  <Button variant="secondary" onClick={() => setVolunteerOpen(true)}><UserPlus className="mr-2" size={18} /> Add Volunteer</Button>
                 </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <MiniStat label="Total volunteers" value={volunteerMetrics.totalVolunteers} />
-                  <MiniStat label="Free profiles" value={volunteerMetrics.unassignedVolunteers} />
-                  <MiniStat label="Available now" value={volunteerMetrics.availableVolunteers} />
-                  <MiniStat label="Can assign here" value={volunteerMetrics.assignableToSelectedCampaign} />
-                </div>
+                <Button variant="secondary" onClick={() => setVolunteerPoolOpen(true)}><Users className="mr-2" size={18} /> Open Volunteer Pool</Button>
               </div>
             )}
 
-            <div className="mt-7 grid gap-6 lg:grid-cols-3 lg:items-start">
-              <div className="premium-card rounded-[1.75rem] p-6 lg:col-span-1 lg:self-start">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Campaign overview</h2><InfoHint label="Basic campaign details. Admins can edit these without removing volunteers, updates, or reports." /></div>
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{campaign.type} · {roleLabel}</p>
-                  </div>
-                  {permissions.canEditCampaigns && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditOpen(true)}
-                        className="inline-flex items-center justify-center rounded-full border border-green-200 bg-white px-4 py-2 text-xs font-extrabold text-forest transition hover:bg-green-50"
-                      >
-                        Edit details
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteCampaign}
-                        disabled={deletingCampaignId === campaign.id}
-                        className="inline-flex items-center justify-center rounded-full border border-red-100 bg-red-50 px-4 py-2 text-xs font-extrabold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Trash2 className="mr-2" size={14} /> {deletingCampaignId === campaign.id ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-5 space-y-3 text-sm text-slate-600">
-                  <div className="rounded-2xl border border-green-100 bg-green-50/55 p-4">
-                    <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Campaign</p>
-                    <p className="mt-1 font-bold text-ink">{campaign.title}</p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                    <div className="rounded-2xl border border-green-100 bg-white/80 p-4">
-                      <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Location</p>
-                      <p className="mt-1 font-bold text-ink">{campaign.location}</p>
-                    </div>
-                    <div className="rounded-2xl border border-green-100 bg-white/80 p-4">
-                      <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Status</p>
-                      <p className="mt-1 font-bold text-ink">{campaign.status}</p>
-                    </div>
-                  </div>
-                  {campaign.goal && <p className="rounded-2xl border border-green-100 bg-white/80 p-4 leading-6"><span className="block text-xs font-extrabold uppercase tracking-wide text-slate-500">Goal</span><span className="mt-1 block">{campaign.goal}</span></p>}
-                </div>
-                <div className="mt-7 h-3 rounded-full bg-green-100">
-                  <div className="h-3 rounded-full bg-leaf" style={{ width: `${campaign.completion}%` }} />
-                </div>
-                <p className="mt-3 text-xs font-medium text-slate-500">Progress calculated from campaign status, field updates, volunteers, and report activity.</p>
-              </div>
-
-              <div className="premium-card rounded-[1.75rem] p-6 lg:col-span-2 lg:self-start">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Assigned volunteers</h2><InfoHint label="People linked to this campaign and the role they play in field work." /></div>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">People connected to this campaign.</p>
-                  </div>
-                  {permissions.canManageVolunteers && <Button variant="secondary" onClick={() => setAssignOpen(true)}><Users className="mr-2" size={18} /> Assign Volunteer</Button>}
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {campaign.volunteers.length > 0 ? campaign.volunteers.map((volunteer) => (
-                    <div key={volunteer.id || `${volunteer.name}-${volunteer.assignmentRole}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-bold text-ink">{volunteer.name}</p>
-                          <p className="mt-1 text-sm text-slate-600">{volunteer.assignmentRole}</p>
-                        </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-forest">{volunteer.availabilityLabel}</span>
-                      </div>
-                      <p className="mt-3 text-xs font-semibold text-slate-500">Profile role: {volunteer.role}</p>
-                      {volunteer.city && <p className="mt-1 text-xs font-semibold text-slate-500">{volunteer.city}</p>}
-                      {volunteer.assignmentCount > 1 && (
-                        <p className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-500">
-                          Also active in {volunteer.assignmentCount - 1} other campaign{volunteer.assignmentCount - 1 > 1 ? 's' : ''}
-                        </p>
-                      )}
-                    </div>
-                  )) : (
-                    <div className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm leading-6 text-slate-600">
-                      No volunteers assigned yet. Admins and coordinators can add volunteer profiles and assign them to this campaign.
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="mt-6 grid gap-6 xl:grid-cols-2 xl:items-start">
+              <AssignedVolunteers campaign={campaign} permissions={permissions} onOpenVolunteerDrawer={() => setVolunteerPoolOpen(true)} />
+              <FieldUpdates campaign={campaign} permissions={permissions} onAddUpdate={() => setUpdateOpen(true)} />
             </div>
 
             <div className="mt-7">
               <ImpactReportGenerator campaign={campaign} organizationId={workspaceId} permissions={permissions} onReportSaved={() => loadCampaigns({ preserveSelection: true })} />
             </div>
 
-            <div className="mt-7 grid gap-6 xl:grid-cols-2 xl:items-start">
-              <div className="premium-card rounded-[1.75rem] p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Field updates</h2><InfoHint label="Field notes are the evidence used for report drafts. Add specific, verified updates before generating reports." /></div>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">Field notes used as report evidence.</p>
-                  </div>
-                  {permissions.canAddFieldUpdates && <Button variant="secondary" onClick={() => setUpdateOpen(true)}><FilePlus2 className="mr-2" size={18} /> Add Update</Button>}
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                  {campaign.fieldUpdates?.length > 0 ? campaign.fieldUpdates.map((update, index) => (
-                    <div key={update.id || `${update.update_text}-${index}`} className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs font-extrabold text-leaf">Update {index + 1}</p>
-                        <p className="text-xs font-semibold text-slate-500">{update.location || campaign.location}</p>
-                      </div>
-                      <p className="mt-2 text-sm leading-7 text-slate-700">{update.update_text}</p>
-                      {update.submitted_by && <p className="mt-3 text-xs font-semibold text-slate-500">Submitted by {update.submitted_by}</p>}
+            <div className="mt-7 grid gap-6 xl:grid-cols-[0.85fr_1.15fr] xl:items-start">
+              <SectionShell>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-2xl bg-green-100 p-3 text-forest"><Activity size={20} /></div>
+                    <div>
+                      <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Workflow quality</h2><InfoHint label="Quick indicators for evidence depth and review follow-through across the workspace." /></div>
+                      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Evidence and review health across this workspace.</p>
                     </div>
-                  )) : (
-                    <p className="rounded-2xl border border-green-100 bg-green-50/70 p-5 text-sm text-slate-600">No field updates added yet. Report generation should be based on field evidence.</p>
-                  )}
-                </div>
-              </div>
-              <ReportsHistory reports={campaign.reports || []} canReviewReports={permissions.canReviewReports} onReportStatusChanged={() => loadCampaigns({ preserveSelection: true })} />
-            </div>
-
-            <div className="mt-7 premium-card rounded-[1.75rem] p-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-green-100 p-3 text-forest"><Activity size={20} /></div>
-                  <div>
-                    <div className="flex items-center gap-2"><h2 className="display-font text-xl font-black text-ink">Workflow quality</h2><InfoHint label="Quick indicators for evidence depth and review follow-through across the workspace." /></div>
-                    <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-                      Quick indicators for evidence depth and review follow-through.
-                    </p>
                   </div>
+                  <p className="rounded-full bg-amber-50 px-4 py-2 text-xs font-extrabold text-amber-800">Human-reviewed AI drafts</p>
                 </div>
-                <p className="rounded-full bg-amber-50 px-4 py-2 text-xs font-extrabold text-amber-800">AI drafts remain human-reviewed</p>
-              </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <MiniStat label="Updates / campaign" value={qualityMetrics.updatesPerCampaign} />
-                <MiniStat label="Approval rate" value={qualityMetrics.approvalRate} />
-                <MiniStat label="Review queue" value={qualityMetrics.reviewQueue} />
-                <MiniStat label="Needs revision" value={qualityMetrics.needsRevision} />
-                <MiniStat label="Evidence-ready" value={qualityMetrics.evidenceReadyCampaigns} />
-              </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <MiniStat label="Updates / campaign" value={qualityMetrics.updatesPerCampaign} />
+                  <MiniStat label="Approval rate" value={qualityMetrics.approvalRate} />
+                  <MiniStat label="Review queue" value={qualityMetrics.reviewQueue} />
+                  <MiniStat label="Needs revision" value={qualityMetrics.needsRevision} />
+                  <MiniStat label="Evidence-ready" value={qualityMetrics.evidenceReadyCampaigns} />
+                </div>
+              </SectionShell>
+
+              <ReportsHistory reports={campaign.reports || []} canReviewReports={permissions.canReviewReports} onReportStatusChanged={() => loadCampaigns({ preserveSelection: true })} />
             </div>
           </>
         )}
       </section>
+
+      <SlideOver open={campaignDrawerOpen} title="Switch campaign" description="Select the campaign you want to work on in this workspace." onClose={() => setCampaignDrawerOpen(false)}>
+        <CampaignSelector campaigns={campaigns} selectedId={selectedId} onSelect={selectCampaignFromDrawer} />
+      </SlideOver>
+
+      <SlideOver open={volunteerPoolOpen} title="Volunteer pool" description="Review volunteer profiles, availability, and where people are currently assigned." onClose={() => setVolunteerPoolOpen(false)}>
+        <VolunteerPoolPanel
+          volunteers={volunteers}
+          campaigns={campaigns}
+          selectedCampaignId={selectedId}
+          volunteerMetrics={volunteerMetrics}
+          permissions={permissions}
+          onAssignVolunteer={() => {
+            setVolunteerPoolOpen(false)
+            setAssignOpen(true)
+          }}
+          onAddVolunteer={() => {
+            setVolunteerPoolOpen(false)
+            setVolunteerOpen(true)
+          }}
+        />
+      </SlideOver>
 
       <SlideOver open={createOpen} title="Create campaign" description="Add a campaign record that can receive volunteers, field updates, and report drafts." onClose={() => setCreateOpen(false)}>
         <CreateCampaignPanel backendReady={backendReady} organizationId={workspaceId} onCreated={handleCampaignCreated} />
