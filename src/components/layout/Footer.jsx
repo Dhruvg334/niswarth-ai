@@ -13,22 +13,21 @@ export default function Footer() {
               <p className="text-sm text-green-100/85">Selfless service, smarter impact.</p>
             </div>
           </div>
-          <p className="mt-5 max-w-md text-sm leading-7 text-green-50/80">An AI-assisted platform for NGO workflow coordination, campaign visibility, and human-reviewed impact reporting.</p>
+          <p className="mt-5 max-w-md text-sm leading-7 text-green-50/80">A workspace for NGO campaign work, field updates, volunteer visibility, and reviewed impact reports.</p>
         </div>
         <div>
           <p className="font-bold text-white">Product</p>
           <div className="mt-4 flex flex-col gap-2 text-sm text-green-50/80">
             <Link to="/demo" className="hover:text-white">Workflow Dashboard</Link>
-            <Link to="/use-cases" className="hover:text-white">Use Cases</Link>
+            <Link to="/use-cases" className="hover:text-white">How it Works</Link>
             <Link to="/about" className="hover:text-white">About</Link>
           </div>
         </div>
         <div>
           <p className="font-bold text-white">Contact</p>
           <div className="mt-4 flex flex-col gap-2 text-sm text-green-50/80">
-            <Link to="/contact" className="hover:text-white">Map Workflow</Link>
-            <span>dhruvg3304@gmail.com</span>
-            <span>AI drafts require human review</span>
+            <Link to="/contact" className="hover:text-white">Contact developer</Link>
+            <a href="https://github.com/Dhruvg334/niswarth-ai" target="_blank" rel="noreferrer" className="hover:text-white">GitHub repository</a>
           </div>
         </div>
       </div>

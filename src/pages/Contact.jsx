@@ -15,10 +15,11 @@ const initialForm = {
 }
 
 const inquiryTypes = [
-  'NGO workflow inquiry',
-  'Product discussion',
+  'Project feedback',
   'Collaboration',
-  'Feedback',
+  'NGO workflow discussion',
+  'Recruiter / internship discussion',
+  'Technical question',
   'Other',
 ]
 
@@ -62,7 +63,7 @@ export default function Contact() {
       await submitContactInquiry(form)
       setForm(initialForm)
       setStatus('success')
-      setMessage('Thanks. Your message has been received and can now be reviewed from the project contact inbox.')
+      setMessage('Thanks. Your message has been received.')
     } catch (error) {
       setStatus('error')
       setMessage(error.message || 'The message could not be sent right now. Please try again in a moment.')
@@ -73,17 +74,16 @@ export default function Contact() {
     <section className="gradient-bg pb-20 pt-24 lg:pb-24 lg:pt-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <SectionHeader
-          eyebrow="Contact"
-          title="Start a workflow conversation"
-          description="Share the kind of campaign, volunteer, or reporting workflow you want to organize. This form now sends inquiries to the project contact inbox."
+          title="Contact the developer about Niswarth AI"
+          description="Share feedback, collaboration ideas, NGO workflow questions, or technical discussion around the project."
         />
 
         <div className="mt-14 grid gap-8 lg:grid-cols-[0.9fr_1.35fr] lg:items-start">
           <aside className="rounded-[2rem] border border-green-100 bg-white/85 p-6 shadow-soft backdrop-blur md:p-8">
             <p className="text-sm font-extrabold uppercase tracking-[0.22em] text-leaf">What to share</p>
-            <h3 className="mt-4 display-font text-3xl font-black tracking-[-0.04em] text-ink">Keep it practical and workflow-focused.</h3>
+            <h3 className="mt-4 display-font text-3xl font-black tracking-[-0.04em] text-ink">Keep it specific and practical.</h3>
             <p className="mt-4 leading-7 text-slate-600">
-              The most useful inquiries describe how your team currently manages campaigns, volunteers, field updates, or impact reports.
+              The most useful messages explain what you want to discuss, test, review, or improve in the product.
             </p>
 
             <div className="mt-7 space-y-4">
@@ -92,7 +92,7 @@ export default function Contact() {
                   <span className="rounded-2xl bg-green-50 p-3 text-forest shadow-sm"><MessageSquareText size={20} /></span>
                   <div>
                     <p className="font-bold text-ink">Workflow context</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">Mention the type of campaign and where coordination currently becomes difficult.</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">For NGO discussions, mention the campaign workflow and where coordination currently becomes difficult.</p>
                   </div>
                 </div>
               </div>
@@ -101,7 +101,7 @@ export default function Contact() {
                   <span className="rounded-2xl bg-green-50 p-3 text-forest"><ShieldCheck size={20} /></span>
                   <div>
                     <p className="font-bold text-ink">Human-reviewed AI</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">Niswarth AI is designed around draft generation, review, and approval rather than automatic publishing.</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">The project is built around draft generation, evidence checks, review, and approval rather than automatic publishing.</p>
                   </div>
                 </div>
               </div>
@@ -110,7 +110,7 @@ export default function Contact() {
                   <span className="rounded-2xl bg-green-50 p-3 text-forest"><Mail size={20} /></span>
                   <div>
                     <p className="font-bold text-ink">Direct inquiry</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">Messages submitted here are routed through Formspree so the public site has a working contact path.</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">You can also write directly to dhruvg3304@gmail.com for project or internship-related discussion.</p>
                   </div>
                 </div>
               </div>
@@ -156,14 +156,14 @@ export default function Contact() {
               </label>
 
               <label className="text-sm font-bold text-ink">
-                NGO / Organization Name
+                Organisation / Company
                 <input
                   name="organization"
                   value={form.organization}
                   onChange={updateField}
                   required
                   className="mt-2 w-full rounded-2xl border border-green-100 bg-green-50/30 px-4 py-3 outline-none transition focus:border-leaf focus:bg-white"
-                  placeholder="Organization name"
+                  placeholder="Organisation, company, or project name"
                 />
               </label>
 
@@ -179,7 +179,7 @@ export default function Contact() {
               </label>
 
               <label className="text-sm font-bold text-ink md:col-span-2">
-                Inquiry Type
+                Inquiry type
                 <select
                   name="inquiryType"
                   value={form.inquiryType}
@@ -203,14 +203,14 @@ export default function Contact() {
                   required
                   rows="7"
                   className="mt-2 w-full rounded-2xl border border-green-100 bg-green-50/30 px-4 py-3 outline-none transition focus:border-leaf focus:bg-white"
-                  placeholder="Describe the workflow, reporting need, or collaboration idea you want to discuss."
+                  placeholder="Describe the project feedback, workflow question, collaboration idea, or technical discussion you want to start."
                 />
               </label>
             </div>
 
             <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
               <Button type="submit" disabled={status === 'submitting'} className={status === 'submitting' ? 'cursor-not-allowed opacity-70' : ''}>
-                {status === 'submitting' ? 'Sending...' : 'Send Inquiry'}
+                {status === 'submitting' ? 'Sending...' : 'Send Message'}
               </Button>
               {message && (
                 <p className={`text-sm font-semibold leading-6 ${status === 'success' ? 'text-forest' : 'text-red-700'}`}>

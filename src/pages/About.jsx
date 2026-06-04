@@ -1,18 +1,63 @@
-import SectionHeader from '../components/common/SectionHeader.jsx'
+import { Code2, GitBranch, ShieldCheck, Sparkles } from 'lucide-react'
+import Button from '../components/common/Button.jsx'
+
+const buildNotes = [
+  ['Full-stack product build', 'React, Vite, Tailwind, Supabase Auth/Postgres/RLS, Vercel API routes, Gemini, and CI checks.'],
+  ['Human-reviewed AI', 'AI drafts are handled as working drafts with evidence, missing information, risk flags, and reviewer decisions.'],
+  ['Organisation-scoped data', 'Workspaces, memberships, roles, campaigns, volunteers, updates, and reports remain tied to the selected organisation.'],
+]
 
 export default function About() {
   return (
-    <section className="gradient-bg pb-20 pt-24 lg:pb-24 lg:pt-28">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <SectionHeader eyebrow="About" title="Why Niswarth AI exists" description="Niswarth means selfless. The platform is inspired by the people who coordinate social-impact work every day, often with limited tools and heavy responsibility." />
-        <div className="mt-14 grid gap-6 md:grid-cols-2">
-          <div className="card-hover premium-card rounded-[2rem] p-8">
-            <h2 className="display-font text-3xl font-extrabold text-ink">Product idea</h2>
-            <p className="mt-5 text-base leading-8 text-slate-600">Many NGOs already do strong field work, but coordination and reporting often remain manual. Niswarth AI brings campaign visibility, volunteer coordination, structured updates, and AI-assisted reporting into one calm workflow.</p>
+    <section className="gradient-bg pb-20 pt-16 lg:pb-24 lg:pt-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div>
+            <h1 className="display-font text-5xl font-black leading-[1] tracking-[-0.055em] text-ink md:text-6xl">Built to make NGO reporting more accountable.</h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">Niswarth AI started as a practical exploration of how AI can support social-impact teams without replacing human judgment.</p>
           </div>
-          <div className="card-hover premium-card rounded-[2rem] p-8">
-            <h2 className="display-font text-3xl font-extrabold text-ink">What the platform supports</h2>
-            <p className="mt-5 text-base leading-8 text-slate-600">The platform experience focuses on structured campaign records, volunteer visibility, field update collection, and AI-assisted summaries that remain under human review before sharing.</p>
+          <div className="rounded-[2rem] border border-green-100 bg-white/90 p-6 shadow-[0_26px_80px_-54px_rgba(20,83,45,0.6)] md:p-8">
+            <div className="flex items-center gap-3 text-forest"><Sparkles size={22} /><p className="font-black">Current stage</p></div>
+            <h2 className="mt-5 display-font text-3xl font-black tracking-[-0.04em] text-ink">Active product prototype, not a finished SaaS.</h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">The project already includes working auth, organisation workspaces, role-aware dashboards, structured AI reporting, audit logs, version history, and member workflows. It is still being refined before being positioned as production software.</p>
+          </div>
+        </div>
+
+        <div className="mt-16 grid gap-6 lg:grid-cols-3">
+          {buildNotes.map(([title, copy]) => (
+            <article key={title} className="rounded-[1.75rem] border border-green-100 bg-white/88 p-6 shadow-[0_20px_55px_-44px_rgba(20,83,45,0.55)]">
+              <h2 className="text-xl font-black text-ink">{title}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{copy}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-16 grid gap-8 rounded-[2.25rem] border border-green-100 bg-white/88 p-6 shadow-[0_24px_80px_-58px_rgba(20,83,45,0.58)] md:p-8 lg:grid-cols-[0.75fr_1.25fr] lg:p-10">
+          <div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 text-forest"><Code2 size={26} /></div>
+            <h2 className="mt-6 display-font text-4xl font-black tracking-[-0.045em] text-ink">Built by Dhruv Gupta.</h2>
+            <p className="mt-4 text-base leading-8 text-slate-600">Computer Science undergraduate focused on AI workflow systems, full-stack product engineering, and practical automation.</p>
+            <div className="mt-7"><Button to="/contact" variant="secondary">Contact developer</Button></div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-[0_18px_50px_-44px_rgba(20,83,45,0.55)]">
+              <div className="flex items-center gap-2 text-forest"><GitBranch size={18} /><p className="font-black">Engineering focus</p></div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">Service-layer separation, Supabase RLS, server-side AI calls, workflow tests, and clean git phases.</p>
+            </div>
+            <a
+              href="https://github.com/Dhruvg334/niswarth-ai"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-[1.5rem] border border-green-100 bg-white p-5 transition hover:-translate-y-1 hover:border-green-200 hover:shadow-[0_20px_55px_-44px_rgba(20,83,45,0.6)] focus-ring"
+            >
+              <div className="flex items-center gap-2 text-forest"><GitBranch size={18} /><p className="font-black">Project repository</p></div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">View the source code, engineering history, tests, and current README on GitHub.</p>
+              <p className="mt-4 text-sm font-bold text-forest">Open GitHub repo →</p>
+            </a>
+            <div className="rounded-[1.5rem] border border-green-100 bg-white p-5 shadow-[0_18px_50px_-44px_rgba(20,83,45,0.55)] sm:col-span-2">
+              <div className="flex items-center gap-2 text-forest"><ShieldCheck size={18} /><p className="font-black">Design focus</p></div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">A calm interface that keeps technical depth inside the system and shows simple decisions to the NGO user.</p>
+            </div>
           </div>
         </div>
       </div>
