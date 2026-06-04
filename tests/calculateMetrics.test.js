@@ -8,8 +8,9 @@ import {
   calculateVolunteerMetrics,
 } from '../src/utils/calculateMetrics.js'
 
-test('calculateCampaignProgress returns completed campaign as 100%', () => {
+test('calculateCampaignProgress returns stable values for closed states', () => {
   assert.equal(calculateCampaignProgress('completed', 0, 0), 100)
+  assert.equal(calculateCampaignProgress('cancelled', 4, 2), 15)
 })
 
 test('calculateCampaignMetrics counts report statuses correctly', () => {

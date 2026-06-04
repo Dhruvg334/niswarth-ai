@@ -1,6 +1,7 @@
 export function calculateCampaignProgress(status, updateCount, reportCount) {
   if (status === 'completed') return 100
   if (status === 'paused') return 45
+  if (status === 'cancelled') return 15
   if (status === 'planning') return Math.min(35, 15 + updateCount * 5)
   return Math.min(90, 45 + updateCount * 7 + reportCount * 8)
 }

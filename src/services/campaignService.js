@@ -1,20 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient.js'
 import { campaigns as fallbackCampaigns } from '../data/campaigns.js'
 import { calculateCampaignMetrics } from '../utils/calculateMetrics.js'
-
-const typeLabels = {
-  education: 'Education Drive',
-  animal_welfare: 'Animal Welfare',
-  environment: 'Environment Drive',
-  other: 'Other Campaign',
-}
-
-const statusLabels = {
-  planning: 'Planning',
-  active: 'Active',
-  completed: 'Completed',
-  paused: 'Paused',
-}
+import { getCampaignStatusLabel, getCampaignTypeLabel } from '../utils/campaignOptions.js'
 
 const availabilityLabels = {
   available: 'Available',
@@ -53,6 +40,8 @@ function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdat
         role: volunteer?.role || 'Volunteer',
         assignmentRole: assignment.assignment_role || volunteer?.role || 'Volunteer',
         city: volunteer?.city || '',
+        phone: volunteer?.phone || '',
+        email: volunteer?.email || '',
         availability: volunteer?.availability || 'available',
         availabilityLabel: availabilityLabels[volunteer?.availability] || volunteer?.availability || 'Available',
         assignmentCount: campaignVolunteers.filter((item) => item.volunteer_id === assignment.volunteer_id).length,
@@ -82,11 +71,11 @@ function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdat
     return {
       id: campaign.id,
       organizationId: campaign.organization_id,
-      type: typeLabels[campaign.type] || campaign.type,
+      type: getCampaignTypeLabel(campaign.type),
       rawType: campaign.type,
       title: campaign.title,
       location: campaign.location,
-      status: statusLabels[campaign.status] || campaign.status,
+      status: getCampaignStatusLabel(campaign.status),
       rawStatus: campaign.status,
       goal: campaign.goal,
       startDate: campaign.start_date,
@@ -108,6 +97,10 @@ function mapCampaignRows({ campaigns, volunteers, campaignVolunteers, fieldUpdat
 }
 
 function buildNextActions(type, status) {
+  if (status === 'cancelled') {
+    return ['Keep records available for audit', 'Avoid new field activity unless campaign is reopened']
+  }
+
   if (status === 'planning') {
     return ['Confirm campaign dates', 'Assign field volunteers', 'Prepare first update checklist']
   }
@@ -115,8 +108,12 @@ function buildNextActions(type, status) {
   const shared = ['Review field updates', 'Prepare human-reviewed impact summary']
 
   if (type === 'education') return ['Confirm next learning session', 'Review student support notes', ...shared]
+  if (type === 'health' || type === 'nutrition') return ['Check participant notes', 'Verify health or nutrition claims before reporting', ...shared]
   if (type === 'animal_welfare') return ['Verify medical follow-ups', 'Confirm next feeding route', ...shared]
   if (type === 'environment') return ['Confirm sapling care plan', 'Assign post-activity follow-up', ...shared]
+  if (type === 'livelihood') return ['Review participant progress', 'Confirm training or income-support evidence', ...shared]
+  if (type === 'disaster_relief') return ['Check relief distribution evidence', 'Review urgent follow-up needs', ...shared]
+  if (type === 'awareness') return ['Review session attendance', 'Collect participant feedback', ...shared]
 
   return ['Review campaign progress', ...shared]
 }
@@ -299,7 +296,7 @@ export async function createFieldUpdate({ organizationId, campaignId, updateText
 }
 
 
-export async function createVolunteer({ organizationId, name, role, city = '', availability = 'available' }) {
+export async function createVolunteer({ organizationId, name, role, city = '', phone = '', email = '', availability = 'available' }) {
   if (!isSupabaseConfigured) {
     return { volunteer: null, error: new Error('Supabase is not configured.'), skipped: true }
   }
@@ -313,6 +310,8 @@ export async function createVolunteer({ organizationId, name, role, city = '', a
     name: name.trim(),
     role: role.trim(),
     city: city.trim() || null,
+    phone: phone.trim() || null,
+    email: email.trim().toLowerCase() || null,
     availability,
   }
 
@@ -346,7 +345,7 @@ export async function assignVolunteerToCampaign({ campaignId, volunteerId, assig
 }
 
 
-export async function deleteCampaign({ organizationId, campaignId }) {
+export async function deleteCampaign({ organizationId, campaignId, currentRole = 'viewer' }) {
   if (!isSupabaseConfigured) {
     return { error: new Error('Supabase is not configured.'), skipped: true }
   }
@@ -357,6 +356,10 @@ export async function deleteCampaign({ organizationId, campaignId }) {
 
   if (!campaignId) {
     return { error: new Error('Campaign is required for deletion.'), skipped: false }
+  }
+
+  if (currentRole !== 'admin') {
+    return { error: new Error('Only workspace admins can delete campaigns.'), skipped: false }
   }
 
   const { error } = await supabase

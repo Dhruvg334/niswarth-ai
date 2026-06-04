@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Button from '../common/Button.jsx'
 import FormField from './FormField.jsx'
 import { createCampaign } from '../../services/campaignService.js'
+import { CAMPAIGN_STATUS_OPTIONS, CAMPAIGN_TYPE_OPTIONS } from '../../utils/campaignOptions.js'
 
 const initialForm = {
   title: '',
@@ -68,19 +69,17 @@ export default function CreateCampaignPanel({ backendReady, organizationId, onCr
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField label="Campaign type" error={errors.type}>
           <select value={form.type} onChange={(event) => updateField('type', event.target.value)} className="focus-ring w-full rounded-2xl border border-green-100 bg-green-50/50 px-4 py-3 text-sm outline-none">
-            <option value="education">Education</option>
-            <option value="animal_welfare">Animal Welfare</option>
-            <option value="environment">Environment</option>
-            <option value="other">Other</option>
+            {CAMPAIGN_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </FormField>
 
         <FormField label="Status">
           <select value={form.status} onChange={(event) => updateField('status', event.target.value)} className="focus-ring w-full rounded-2xl border border-green-100 bg-green-50/50 px-4 py-3 text-sm outline-none">
-            <option value="planning">Planning</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="completed">Completed</option>
+            {CAMPAIGN_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </FormField>
       </div>

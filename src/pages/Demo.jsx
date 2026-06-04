@@ -140,6 +140,12 @@ function VolunteerPoolPanel({ volunteers, campaigns, selectedCampaignId, volunte
                   <p className="font-extrabold text-ink">{volunteer.name}</p>
                   <p className="mt-1 text-sm text-slate-600">{volunteer.role}</p>
                   {volunteer.city && <p className="mt-1 text-xs font-bold text-slate-500">{volunteer.city}</p>}
+                  {(volunteer.phone || volunteer.email) && (
+                    <div className="mt-2 space-y-1 text-xs font-semibold text-slate-500">
+                      {volunteer.phone && <p>{volunteer.phone}</p>}
+                      {volunteer.email && <p>{volunteer.email}</p>}
+                    </div>
+                  )}
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${assignedHere ? 'bg-green-100 text-forest' : 'bg-white text-slate-500'}`}>
                   {assignedHere ? 'Assigned here' : volunteer.availabilityLabel || volunteer.availability || 'Profile'}
@@ -201,6 +207,12 @@ function AssignedVolunteers({ campaign, permissions, onOpenVolunteerDrawer }) {
               </div>
               <p className="mt-3 text-xs font-semibold text-slate-500">Profile role: {volunteer.role}</p>
               {volunteer.city && <p className="mt-1 text-xs font-semibold text-slate-500">{volunteer.city}</p>}
+              {(volunteer.phone || volunteer.email) && (
+                <div className="mt-2 space-y-1 text-xs font-semibold text-slate-500">
+                  {volunteer.phone && <p>{volunteer.phone}</p>}
+                  {volunteer.email && <p>{volunteer.email}</p>}
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600">{updateCount} update{updateCount === 1 ? '' : 's'}</span>
                 {volunteer.assignmentCount > 1 && (
@@ -356,7 +368,10 @@ export default function Demo() {
   }
 
   async function handleDeleteCampaign() {
-    if (!campaign?.id || !permissions.canDeleteCampaigns) return
+    if (!campaign?.id || !permissions.isAdmin) {
+      setErrorMessage('Only workspace admins can delete campaigns.')
+      return
+    }
 
     const confirmed = window.confirm(`Delete "${campaign.title}"? This will also remove its field updates, volunteer assignments, and report history from this workspace.`)
     if (!confirmed) return
@@ -365,7 +380,7 @@ export default function Demo() {
     setActionNotice('')
     setErrorMessage('')
 
-    const { error } = await deleteCampaign({ organizationId: workspaceId, campaignId: campaign.id })
+    const { error } = await deleteCampaign({ organizationId: workspaceId, campaignId: campaign.id, currentRole: permissions.role })
 
     setDeletingCampaignId(null)
 
