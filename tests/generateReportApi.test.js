@@ -42,6 +42,31 @@ test('generate-report API returns service unavailable when Gemini key is missing
   if (previousKey) process.env.GEMINI_API_KEY = previousKey
 })
 
+
+
+test('generate-report API rejects oversized report requests before calling Gemini', async () => {
+  const previousKey = process.env.GEMINI_API_KEY
+  process.env.GEMINI_API_KEY = 'test-key'
+
+  const res = createMockResponse()
+  await handler({
+    method: 'POST',
+    body: {
+      campaign: {
+        id: 'c1',
+        title: 'Campaign',
+        updates: [{ update_text: 'x'.repeat(70_000) }],
+      },
+    },
+  }, res)
+
+  assert.equal(res.statusCode, 413)
+  assert.match(res.payload.error, /too large/i)
+
+  if (previousKey) process.env.GEMINI_API_KEY = previousKey
+  else delete process.env.GEMINI_API_KEY
+})
+
 test('generate-report API rejects report generation without field updates', async () => {
   const previousKey = process.env.GEMINI_API_KEY
   process.env.GEMINI_API_KEY = 'test-key'

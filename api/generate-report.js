@@ -1,8 +1,153 @@
+import { createClient } from '@supabase/supabase-js'
 import { DEFAULT_AI_MODEL, normalizeStructuredReport, parseStructuredText } from '../src/utils/structuredReport.js'
 import { buildStructuredReportPrompt } from '../src/utils/aiReportPrompt.js'
 
 const GEMINI_MODEL = DEFAULT_AI_MODEL
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+const MAX_BODY_BYTES = 60_000
+const MAX_FIELD_UPDATES = 12
+const MAX_VOLUNTEERS = 10
+const DEFAULT_DAILY_AI_LIMIT = Number(process.env.AI_DAILY_LIMIT_PER_USER || 20)
+
+function getSupabaseServerConfig() {
+  return {
+    url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+    anonKey: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+  }
+}
+
+function getHeader(req, name) {
+  const headers = req?.headers || {}
+  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || ''
+}
+
+function getBearerToken(req) {
+  const authorization = getHeader(req, 'authorization')
+  const match = typeof authorization === 'string' ? authorization.match(/^Bearer\s+(.+)$/i) : null
+  return match?.[1] || ''
+}
+
+function getApproxBodySize(req) {
+  try {
+    return Buffer.byteLength(JSON.stringify(req?.body || {}), 'utf8')
+  } catch {
+    return MAX_BODY_BYTES + 1
+  }
+}
+
+function cleanText(value, maxLength = 500) {
+  if (typeof value !== 'string') return ''
+  return value.replace(/\s+/g, ' ').trim().slice(0, maxLength)
+}
+
+function sanitizeCampaignPayload(campaign) {
+  const updates = Array.isArray(campaign?.updates) ? campaign.updates.slice(0, MAX_FIELD_UPDATES) : []
+  const volunteers = Array.isArray(campaign?.volunteers) ? campaign.volunteers.slice(0, MAX_VOLUNTEERS) : []
+  const organizationId = cleanText(campaign?.organizationId || campaign?.organization_id, 80)
+
+  return {
+    id: cleanText(campaign?.id, 80),
+    organizationId,
+    title: cleanText(campaign?.title, 140),
+    type: cleanText(campaign?.rawType || campaign?.type, 80),
+    location: cleanText(campaign?.location, 140),
+    status: cleanText(campaign?.rawStatus || campaign?.status, 80),
+    goal: cleanText(campaign?.goal, 520),
+    metrics: campaign?.metrics && typeof campaign.metrics === 'object' ? campaign.metrics : {},
+    volunteers: volunteers.map((volunteer) => ({
+      id: cleanText(volunteer?.id, 80),
+      name: cleanText(volunteer?.name, 100),
+      role: cleanText(volunteer?.role, 120),
+      assignmentRole: cleanText(volunteer?.assignmentRole, 120),
+    })),
+    updates: updates
+      .map((update, index) => ({
+        id: cleanText(update?.id, 80) || `update-${index + 1}`,
+        update_text: cleanText(update?.update_text || update?.text || update, 650),
+        location: cleanText(update?.location, 140),
+        submitted_by: cleanText(update?.submitted_by, 140),
+        evidence_type: cleanText(update?.evidence_type, 80),
+      }))
+      .filter((update) => update.update_text.length > 0),
+  }
+}
+
+function getClientForToken(token) {
+  const { url, anonKey } = getSupabaseServerConfig()
+  if (!url || !anonKey) return null
+
+  return createClient(url, anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}
+
+async function verifyRequestAccess(req, campaign) {
+  const { url, anonKey } = getSupabaseServerConfig()
+
+  if (!url || !anonKey) {
+    console.warn('Supabase server env is not configured for /api/generate-report. Skipping auth check in this environment.')
+    return { ok: true, user: null, usage: null }
+  }
+
+  const token = getBearerToken(req)
+  if (!token) {
+    return { ok: false, status: 401, error: 'Sign in again before generating an AI report.' }
+  }
+
+  const supabase = getClientForToken(token)
+  const { data: userData, error: userError } = await supabase.auth.getUser(token)
+
+  if (userError || !userData?.user?.id) {
+    return { ok: false, status: 401, error: 'Your session could not be verified. Sign in again and retry.' }
+  }
+
+  if (!campaign.organizationId) {
+    return { ok: false, status: 400, error: 'Workspace context is required for AI report generation.' }
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from('organization_members')
+    .select('id, role')
+    .eq('organization_id', campaign.organizationId)
+    .eq('user_id', userData.user.id)
+    .maybeSingle()
+
+  if (membershipError) {
+    return { ok: false, status: 403, error: 'Workspace access could not be verified.' }
+  }
+
+  if (!membership?.id) {
+    return { ok: false, status: 403, error: 'You do not have access to this workspace.' }
+  }
+
+  const { data: rateLimit, error: limitError } = await supabase.rpc('register_ai_generation_request', {
+    p_organization_id: campaign.organizationId,
+    p_daily_limit: DEFAULT_DAILY_AI_LIMIT,
+  })
+
+  if (limitError) {
+    return { ok: false, status: 429, error: 'AI request limit could not be checked. Try again shortly.' }
+  }
+
+  if (rateLimit && rateLimit.allowed === false) {
+    return {
+      ok: false,
+      status: 429,
+      error: `Daily AI draft limit reached for this account. Try again tomorrow or use the saved drafts already created today.`,
+      usage: rateLimit,
+    }
+  }
+
+  return { ok: true, user: userData.user, membership, usage: rateLimit || null }
+}
 
 async function requestGeminiReport({ apiKey, prompt, maxOutputTokens = 3200 }) {
   const response = await fetch(GEMINI_ENDPOINT, {
@@ -72,11 +217,16 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'AI service is not configured yet.' })
   }
 
-  try {
-    const { campaign } = req.body || {}
-    const updates = Array.isArray(campaign?.updates) ? campaign.updates : []
+  if (getApproxBodySize(req) > MAX_BODY_BYTES) {
+    return res.status(413).json({ error: 'Report request is too large. Reduce field updates or campaign notes and try again.' })
+  }
 
-    if (!campaign?.id || !campaign?.title) {
+  try {
+    const rawCampaign = req.body?.campaign || {}
+    const campaign = sanitizeCampaignPayload(rawCampaign)
+    const updates = campaign.updates
+
+    if (!campaign.id || !campaign.title) {
       return res.status(400).json({ error: 'Campaign details are required.' })
     }
 
@@ -84,10 +234,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'At least one field update is required before generating a report.' })
     }
 
+    const access = await verifyRequestAccess(req, campaign)
+    if (!access.ok) {
+      return res.status(access.status || 403).json({ error: access.error, usage: access.usage || null })
+    }
+
     console.log(`[${requestId}] Structured report generation started`, {
       campaignId: campaign.id,
+      organizationId: campaign.organizationId || 'not-configured',
       campaignType: campaign.type,
       updateCount: updates.length,
+      userId: access.user?.id || 'not-verified',
     })
 
     const prompt = buildStructuredReportPrompt(campaign)
@@ -134,6 +291,7 @@ export default async function handler(req, res) {
       missingItems: structuredReport.missingEvidence.length,
       riskItems: structuredReport.riskFlags.length,
       usageMetadata: aiResult.usageMetadata,
+      usage: access.usage || null,
     })
 
     return res.status(200).json(structuredReport)
