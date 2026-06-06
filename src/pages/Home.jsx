@@ -98,7 +98,7 @@ export default function Home() {
             <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">Niswarth AI helps NGOs manage campaigns, volunteers, field updates, and human-reviewed impact reports in one workspace.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button to="/signup">Create Workspace <ArrowRight className="ml-2" size={18} /></Button>
-              <Button to="/use-cases" variant="secondary">See Use Cases</Button>
+              <Button to="/use-cases" variant="secondary">How It Works<ArrowRight className="ml-2" size={18} /></Button>
             </div>
             <p className="mt-5 max-w-lg text-sm font-medium leading-6 text-slate-500">AI assists with draft preparation. People still review, revise, and approve final reports.</p>
           </div>
