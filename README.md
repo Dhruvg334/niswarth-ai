@@ -1,10 +1,10 @@
 # Niswarth AI
 
-**Niswarth AI** is a full-stack AI workflow platform for NGO campaign coordination, volunteer assignment, field reporting, and human-reviewed impact report generation.
+Niswarth AI is a full-stack workflow platform for NGOs to manage campaigns, volunteers, field updates, and reviewed impact reports.
 
-The project is built around a real NGO operating problem: campaign work is often scattered across WhatsApp messages, spreadsheets, volunteer notes, field updates, and manually written reports. Niswarth AI brings those workflows into an organization-scoped workspace and uses AI to prepare reviewable report drafts from available field evidence.
+I built this project around a practical problem I kept seeing in NGO-style work: the actual field work happens in many scattered places — WhatsApp messages, spreadsheets, volunteer notes, photos, and manually written reports. Niswarth AI brings that workflow into one organisation workspace and uses AI to prepare report drafts from the evidence already available in the system.
 
-AI is used as a drafting assistant, not as an automatic publisher. Reports still move through human review, revision, and approval before they are treated as usable output.
+AI is not treated as the final decision-maker here. It helps prepare a draft, but the report still goes through human review, notes, revision, and approval.
 
 **Live demo:** https://niswarth-ai.vercel.app/
 
@@ -12,22 +12,25 @@ AI is used as a drafting assistant, not as an automatic publisher. Reports still
 
 ## Current status
 
-Niswarth AI is an active full-stack product build, not a finished SaaS product.
+Niswarth AI is an active full-stack product prototype. It is not a finished SaaS product yet, but it now has enough working depth to show the full campaign-to-report workflow.
 
-The current version includes:
+Current version includes:
 
 - email/password authentication
-- organization-scoped workspaces
-- multi-workspace role switching
+- organisation-scoped workspaces
+- multi-workspace switching
 - Admin, Coordinator, and Reviewer roles
 - Supabase-backed campaigns, volunteers, field updates, and reports
-- Gemini-assisted structured report drafting through a server-side API route
-- local fallback report generation when AI is unavailable
-- report review, approval, revision, audit trail, and version history
+- protected Gemini report-generation API route
+- structured AI report output with evidence, gaps, risks, and next actions
+- visible daily AI draft usage count
+- local fallback report generation when Gemini is unavailable
+- report review, approval, revision, audit logs, and version history
 - public contact form through Formspree
+- Vercel Web Analytics for basic traffic monitoring
 - GitHub Actions checks for tests and production build
 
-The next focus is to close Stage 3 cleanly through review workflow cleanup, reliability improvements, UI/UX polish, architecture notes, and concise project documentation.
+Stage 3 is closed around this stable prototype. The next work should be invite flow, export, deeper monitoring, and production hardening instead of adding more features into this stage.
 
 ---
 
@@ -45,7 +48,7 @@ User signup
 → Report history and audit trail
 ```
 
-Niswarth AI currently supports the complete flow from campaign setup to reviewed report history.
+Niswarth AI now supports this complete flow from campaign setup to reviewed report history.
 
 ---
 
@@ -54,15 +57,15 @@ Niswarth AI currently supports the complete flow from campaign setup to reviewed
 ### Authentication and workspaces
 
 - Supabase email/password authentication
-- Workspace creation for NGO/foundation accounts
-- Organization-scoped records for campaigns, volunteers, updates, and reports
-- Multi-workspace support for users who belong to more than one organization
-- Workspace switcher with role resolved per selected workspace
-- Supabase RLS policies for organization-level data access
+- workspace creation for NGO/foundation accounts
+- organisation-scoped records for campaigns, volunteers, updates, and reports
+- multi-workspace support for users who belong to more than one organisation
+- workspace switcher with role resolved from the selected workspace
+- Supabase RLS policies for organisation-level data access
 
 ### Role-based dashboard
 
-The dashboard behaves differently based on the user role inside the selected workspace.
+The dashboard changes based on the user’s role inside the selected workspace.
 
 | Role | Current access |
 |---|---|
@@ -70,115 +73,62 @@ The dashboard behaves differently based on the user role inside the selected wor
 | Coordinator | Manage volunteers and field updates, generate report drafts, send reports for review |
 | Reviewer | View campaigns and report history, add review notes, approve reports, mark reports as needing revision |
 
-Roles are attached to workspace membership, not to the global user account. A user can be an Admin in one workspace and a Reviewer or Coordinator in another.
+Roles are attached to workspace membership, not to the global user account. The same user can be an Admin in one workspace and a Reviewer or Coordinator in another.
 
 ### Campaign and volunteer workflows
 
-- Create campaigns
-- Edit campaign details
-- Delete campaigns as Admin
-- Create volunteer profiles
-- Assign volunteers to campaigns
-- Track volunteer availability and campaign involvement
-- Add campaign-specific field updates
+- create campaigns
+- edit campaign details
+- delete campaigns as Admin
+- create volunteer profiles with phone/email
+- assign volunteers to campaigns
+- track volunteer availability and campaign involvement
+- add campaign-specific field updates
 
 ### AI-assisted reporting
 
-- Generate impact report drafts from campaign and field update data
-- Use Gemini 2.5 Flash through a Vercel serverless API route
-- Keep `GEMINI_API_KEY` server-side only
-- Return structured AI output with:
+- generate impact report drafts from campaign and field update data
+- use Gemini 2.5 Flash through a Vercel serverless API route
+- keep `GEMINI_API_KEY` server-side only
+- return structured AI output with:
   - evidence used
   - missing information
   - risk flags
   - next actions
   - confidence/readiness score
   - model and generation source
-- Use a local fallback generator when Gemini is unavailable
-- Keep report drafts editable before review or approval
+- use a local fallback generator when Gemini is unavailable
+- keep report drafts editable before review or approval
 
 ### Human review and audit trail
 
-- Save report drafts
-- Send reports for review
-- Approve reports
-- Mark reports as needing revision
-- Add review notes
-- Store AI generation logs
-- Store report version history
-- Show compact audit details in Report History
+- save report drafts
+- send reports for review
+- approve reports
+- mark reports as needing revision
+- add review notes
+- store AI generation logs
+- store report version history
+- show compact audit details in Report History
 
-### Contact form
+### Monitoring and usage limits
 
-- Public contact page connected through Formspree
-- Contact submission handled without exposing private server-side credentials
+- Vercel Web Analytics is added for basic traffic visibility
+- AI draft requests are tracked per user and organisation
+- the report workspace shows daily AI draft usage
+- the AI route blocks requests after the daily limit
 
 ---
 
 ## Why this exists
 
-NGO teams need to communicate work clearly, but the raw material for that communication usually comes from fragmented field activity: volunteer notes, local observations, attendance counts, informal messages, and campaign updates.
+NGO teams often need to show impact, but the raw information behind that impact is usually scattered. Reports get written manually after the field work is already done, and it becomes hard to track what evidence supports which claim.
 
-Niswarth AI focuses on a specific problem:
+Niswarth AI focuses on one narrow workflow:
 
-> Help NGO teams convert campaign activity and field updates into structured, reviewable impact reports without losing human control over final claims.
+> help an NGO collect field evidence, prepare a draft report, and review it before it becomes final.
 
-The product does not try to automate an NGO’s full operations. It focuses on the campaign-to-report workflow and builds structure around evidence, review, and accountability.
-
----
-
-## Engineering highlights
-
-### Real full-stack workflow
-
-This is not a static frontend demo. The project uses a live backend model with Supabase Auth, Postgres tables, organization membership, RLS policies, serverless AI generation, and CI checks.
-
-Key implementation areas:
-
-- React + Vite app structure
-- Supabase Auth and organization-scoped data model
-- RLS-backed workspace isolation
-- Role-aware service and UI behavior
-- Vercel API route for Gemini integration
-- Structured AI output validation and fallback handling
-- AI audit logging and report versioning
-- Local AI test harness with fixtures
-
-### Organization-scoped SaaS model
-
-The project uses a workspace-based model closer to a real SaaS app:
-
-```text
-User account
-→ Organization membership
-→ Role inside selected workspace
-→ Organization-scoped campaigns, updates, volunteers, and reports
-```
-
-The role is resolved from the selected workspace membership. This matters because the same user can belong to multiple workspaces with different roles.
-
-### Human-in-the-loop AI design
-
-AI reports are treated as drafts. The app keeps human review central by requiring users to save, edit, send for review, approve, or request revision.
-
-The AI layer also returns structured metadata so reviewers can see what the draft was based on and what still needs checking.
-
-### Auditability
-
-The current build records more than just final report text. It also stores generation and version history so the report workflow has traceability:
-
-- AI/fallback generation source
-- model name where available
-- readiness/confidence score
-- evidence used
-- missing evidence
-- risk flags
-- input snapshot
-- report versions created during save/review/approval actions
-
-### Fallback behavior
-
-When the Gemini route fails or no AI key is available, the app still produces a structured local draft using available campaign and update data. The UI indicates that fallback generation was used, instead of silently treating it as a normal AI response.
+The goal is not to replace judgement. The goal is to reduce reporting friction and make the review process more structured.
 
 ---
 
@@ -189,9 +139,10 @@ When the Gemini route fails or no AI key is available, the app still produces a 
 | Frontend | React, Vite, Tailwind CSS |
 | Routing | React Router |
 | Backend / Database | Supabase Auth, Supabase Postgres |
-| Access control | Supabase Row Level Security |
+| Security | Supabase Row Level Security, RPC functions, protected API routes |
 | AI generation | Gemini 2.5 Flash through Vercel API route |
 | Contact form | Formspree |
+| Monitoring | Vercel Web Analytics |
 | Deployment | Vercel |
 | Testing | Node test runner |
 | CI | GitHub Actions |
@@ -205,18 +156,24 @@ When the Gemini route fails or no AI key is available, the app still produces a 
 React UI
   ↓
 Service layer
-  ├── Auth service
-  ├── Workspace service
-  ├── Member service
-  ├── Campaign service
-  ├── Volunteer service
-  ├── Field update service
-  ├── Report service
+  ├── Supabase services
+  │     ├── Auth
+  │     ├── Workspaces
+  │     ├── Members
+  │     ├── Campaigns
+  │     ├── Volunteers
+  │     ├── Field updates
+  │     └── Reports
+  │
   ├── AI report service
   │     ↓
   │     Vercel API route: /api/generate-report
   │     ↓
   │     Gemini 2.5 Flash
+  │
+  ├── AI usage service
+  │     ↓
+  │     Vercel API route: /api/ai-usage
   │
   └── Contact service
         ↓
@@ -232,118 +189,26 @@ Supabase Postgres
   ├── field_updates
   ├── impact_reports
   ├── ai_generation_logs
-  └── report_versions
+  ├── report_versions
+  └── ai_request_usage
 ```
+
+More detailed architecture notes are in [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
-## Data model
+## Documentation
 
-The database is organized around workspaces.
+The deeper project notes are split into focused docs:
 
-| Table | Purpose |
+| Doc | Covers |
 |---|---|
-| `profiles` | App-level user profile linked to Supabase Auth |
-| `organizations` | NGO/foundation workspace |
-| `organization_members` | User membership and role inside an organization |
-| `campaigns` | Campaign records under an organization |
-| `volunteers` | Reusable volunteer profiles scoped to an organization |
-| `campaign_volunteers` | Volunteer-to-campaign assignment records |
-| `field_updates` | Field notes and campaign progress updates |
-| `impact_reports` | AI-assisted reports, edited drafts, review status, and structured metadata |
-| `ai_generation_logs` | AI/fallback generation details and input snapshots |
-| `report_versions` | Version history for saved, reviewed, revised, and approved reports |
-
----
-
-## AI report workflow
-
-The report workflow follows a controlled generation path:
-
-1. User selects a campaign.
-2. System checks available field updates and campaign context.
-3. Frontend sends structured context to `/api/generate-report`.
-4. Serverless route builds the AI prompt and calls Gemini 2.5 Flash.
-5. API normalizes the response into a structured report object.
-6. Frontend shows editable draft text and compact evidence/review cards.
-7. User saves the draft, sends it for review, approves it, or marks it for revision.
-8. The system stores generation details and report versions.
-
-The structured report object includes:
-
-```text
-title
-summary
-evidenceUsed
-missingEvidence
-riskFlags
-nextActions
-reviewRequired
-confidence
-aiModel
-generationSource
-```
-
-The Gemini key is never exposed to the browser. It should be configured only as a server-side environment variable.
-
----
-
-## Local AI testing
-
-The project includes a local AI testing harness.
-
-Normal tests do not call Gemini:
-
-```bash
-npm test
-```
-
-Optional live Gemini testing can be run when a local `GEMINI_API_KEY` is available:
-
-```bash
-npm run test:ai-live
-```
-
-Without a key, the live AI test script exits safely and explains that the test was skipped.
-
-Sample report cases are stored under:
-
-```text
-tests/fixtures/reportCases/
-```
-
-These fixtures are used to test structured report behavior with more realistic NGO scenarios.
-
----
-
-## Screenshots
-
-Screenshots will be added after the Stage 3 UI polish phase.
-
-Planned screenshots:
-
-| Screenshot | Purpose |
-|---|---|
-| Home page | Product positioning and landing page design |
-| Auth / workspace setup | Account and NGO workspace onboarding |
-| Dashboard overview | Campaign, volunteer, and workflow metrics |
-| Workspace members | Role-based member management |
-| AI report workspace | Editable draft and review metadata |
-| Report history | Audit trail and version history |
-| Contact page | Public inquiry path |
-
-Planned path:
-
-```text
-screenshots/
-  home.png
-  workspace-setup.png
-  dashboard.png
-  workspace-members.png
-  ai-report-workspace.png
-  report-history.png
-  contact.png
-```
+| [`docs/architecture.md`](docs/architecture.md) | app structure, routes, services, API routes, workspace/role flow |
+| [`docs/data-model.md`](docs/data-model.md) | Supabase tables, relationships, migration notes |
+| [`docs/ai-workflow.md`](docs/ai-workflow.md) | Gemini flow, fallback, structured output, limits, audit/version flow |
+| [`docs/security-model.md`](docs/security-model.md) | auth, RLS, roles, API protection, secrets, usage limits |
+| [`docs/testing.md`](docs/testing.md) | automated tests, manual QA, role testing, AI testing |
+| [`docs/roadmap.md`](docs/roadmap.md) | future work after Stage 3 |
 
 ---
 
@@ -364,7 +229,7 @@ npm install
 
 ### 3. Configure environment variables
 
-Create a `.env.local` file in the project root.
+Create `.env.local` in the project root.
 
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
@@ -377,11 +242,19 @@ For deployed AI generation, configure this in Vercel Project Settings → Enviro
 GEMINI_API_KEY=your-gemini-api-key
 ```
 
-Do not prefix `GEMINI_API_KEY` with `VITE_`. It is a server-side secret used only by the Vercel API route.
+Optional server-side variables:
+
+```env
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+AI_DAILY_LIMIT_PER_USER=20
+```
+
+Do not prefix `GEMINI_API_KEY` with `VITE_`. Vite exposes `VITE_` variables to the frontend, so Gemini must stay server-side.
 
 The Formspree endpoint is configured in the contact service file. It is not a server-side secret.
 
-### 4. Start the development server
+### 4. Start development server
 
 ```bash
 npm run dev
@@ -397,11 +270,9 @@ http://localhost:5173
 
 ## Database setup
 
-Database migrations are stored in `/database`.
+Supabase SQL files are stored in `/database`.
 
-For a fresh Supabase project, run the SQL files in numerical order, while keeping the notes below in mind.
-
-Core setup files:
+For a fresh Supabase project, run the SQL files in numerical order with the notes below:
 
 ```text
 01_schema.sql
@@ -418,14 +289,27 @@ Core setup files:
 14_member_reviewer_workflow.sql
 15_fix_member_email_rpc.sql
 16_harden_member_management_rpc.sql
+17_campaign_permissions_and_volunteer_contacts.sql
+18_security_reliability_hardening.sql
 ```
 
-Important notes:
+Do not run:
 
-- Do not run `05_org_scoped_rls_do_not_run_yet.sql`; it was kept as an intermediate reference and is superseded by later hardening scripts.
-- `11_rls_isolation_manual_test.sql` is for manual inspection only.
-- Supabase Auth should have the Email provider enabled.
-- Migrations `15` and `16` are follow-up hardening migrations for member-management RPCs. They are kept in the repo so the current branch history and database repair path remain clear.
+```text
+05_org_scoped_rls_do_not_run_yet.sql
+```
+
+It was kept as a historical intermediate file and is replaced by later hardening migrations.
+
+Use only for manual checks:
+
+```text
+11_rls_isolation_manual_test.sql
+```
+
+Supabase Auth should have the Email provider enabled.
+
+More detail is in [`docs/data-model.md`](docs/data-model.md).
 
 ---
 
@@ -433,68 +317,60 @@ Important notes:
 
 ```bash
 npm run dev          # start local development server
-npm run build        # create production build
+npm run build        # production build
 npm run preview      # preview production build locally
-npm test             # run core tests
-npm run test:ai-live # optional live Gemini structured-output test
+npm test             # run automated tests
+npm run test:ai-live # optional live Gemini test when GEMINI_API_KEY is set locally
 ```
 
 ---
 
-## Testing and CI
+## Testing
 
-The test suite currently covers:
+Automated tests cover:
 
 - dashboard metrics
-- volunteer assignment counting
 - fallback report generation
-- structured AI report validation
-- Gemini API handler behavior
-- role/permission utility behavior
+- structured AI report parsing
+- API handler behavior
+- daily AI usage API behavior
+- role/permission helpers
+- report workflow rules
 
-GitHub Actions runs test and build checks on pull requests and pushes to `main`.
+Manual QA is still needed for Supabase Auth, real RLS behavior, workspace switching, Gemini calls, Formspree, and Vercel Analytics.
 
-Manual QA is tracked in:
-
-```text
-QA_CHECKLIST.md
-```
+More detail is in [`docs/testing.md`](docs/testing.md).
 
 ---
 
 ## Current limitations
 
-The project is functional, but it is still an active build. Current limitations include:
+This is still a product prototype. Known limitations:
 
-- Google OAuth is not enabled yet; authentication uses email/password.
-- New users currently create their own workspace first; admins can then add them to another workspace by email.
-- Email invitation flow is not implemented yet.
-- Role permissions are enforced mainly through UI/service logic plus organization-scoped RLS. More granular database policies can be added later.
-- PDF/report export is not implemented yet.
-- The dashboard still needs a final UI/UX polish pass to reduce text-heavy areas and improve mobile behavior.
-- Advanced agentic orchestration is not implemented. The current AI flow is a controlled report-generation workflow.
+- Google OAuth is not enabled yet.
+- Member invitation flow is not built yet. Users sign up first, then an Admin adds their email.
+- Approved report export/PDF is not built yet.
+- The creator metrics console is not built yet. Vercel Analytics covers traffic for now.
+- The dashboard works, but `Demo.jsx` is large and should be split later.
+- Route-level lazy loading is not added yet, so the build still shows a chunk-size warning.
+- The system is currently a controlled AI report-generation workflow, not an agentic system. I plan to add agentic features in future stages.
 
 ---
 
 ## Roadmap
 
-Near-term Stage 3 close-out:
+Main future work:
 
-- Refine report review workflow and status clarity
-- Improve error handling, empty states, and loading states
-- Final product UI/UX polish
-- Architecture strengthening review
-- Add concise documentation under `/docs`
-- Final README, screenshots, and portfolio cleanup
+- invite-based member onboarding
+- organisation settings page
+- approved report export/PDF
+- creator metrics console if Vercel + Supabase table checks are not enough
+- dashboard component split
+- route-level lazy loading if performance becomes an issue
+- stronger AI evaluation and benchmark cases
+- better portfolio/recruiter presentation assets
 
-Future product work:
-
-- Proper invite flow for workspace members
-- Role-specific onboarding for Admin vs Member signup
-- PDF/report export
-- More granular database-level permissions
-- Better AI evaluation around unsupported claims
-- Route-level code splitting if bundle size continues to grow
+Full roadmap is in [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
