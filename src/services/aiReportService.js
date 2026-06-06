@@ -7,6 +7,29 @@ async function getAccessToken() {
   return data?.session?.access_token || ''
 }
 
+export async function getDailyAiUsage(organizationId) {
+  if (!organizationId) return { used: 0, limit: 20, remaining: 20 }
+
+  const token = await getAccessToken()
+  if (!token) return { used: 0, limit: 20, remaining: 20 }
+
+  const params = new URLSearchParams({ organizationId })
+  const response = await fetch(`/api/ai-usage?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+
+  const payload = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    return { used: 0, limit: 20, remaining: 20, unavailable: true, message: payload?.error || 'Could not load AI usage.' }
+  }
+
+  return payload
+}
+
 export async function generateAiImpactReport(campaign) {
   const token = await getAccessToken()
 

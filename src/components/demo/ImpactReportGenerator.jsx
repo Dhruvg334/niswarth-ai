@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Copy, RotateCcw, Save, Send, Sparkles } from 'lucide-react'
 import Button from '../common/Button.jsx'
 import InfoHint from '../common/InfoHint.jsx'
 import { generateImpactReport } from '../../utils/generateImpactReport.js'
-import { generateAiImpactReport } from '../../services/aiReportService.js'
+import { generateAiImpactReport, getDailyAiUsage } from '../../services/aiReportService.js'
 import { saveImpactReportDraft, updateImpactReportDraft, updateImpactReportStatus } from '../../services/reportService.js'
 import {
   REPORT_STATUS,
@@ -88,6 +88,47 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [slowGeneration, setSlowGeneration] = useState(false)
+  const [aiUsage, setAiUsage] = useState({ used: 0, limit: 20, remaining: 20, loading: false, unavailable: false })
+
+
+  async function loadAiUsage() {
+    if (!permissions.canGenerateReports || !organizationId) return
+    setAiUsage((current) => ({ ...current, loading: true }))
+    const usage = await getDailyAiUsage(organizationId)
+    setAiUsage({
+      used: Number(usage?.used || 0),
+      limit: Number(usage?.limit || 20),
+      remaining: Number(usage?.remaining ?? Math.max(Number(usage?.limit || 20) - Number(usage?.used || 0), 0)),
+      loading: false,
+      unavailable: Boolean(usage?.unavailable),
+      message: usage?.message || '',
+    })
+  }
+
+  useEffect(() => {
+    let ignore = false
+
+    async function load() {
+      if (!permissions.canGenerateReports || !organizationId) return
+      setAiUsage((current) => ({ ...current, loading: true }))
+      const usage = await getDailyAiUsage(organizationId)
+      if (ignore) return
+      setAiUsage({
+        used: Number(usage?.used || 0),
+        limit: Number(usage?.limit || 20),
+        remaining: Number(usage?.remaining ?? Math.max(Number(usage?.limit || 20) - Number(usage?.used || 0), 0)),
+        loading: false,
+        unavailable: Boolean(usage?.unavailable),
+        message: usage?.message || '',
+      })
+    }
+
+    load()
+
+    return () => {
+      ignore = true
+    }
+  }, [organizationId, permissions.canGenerateReports])
 
   function resetMessages() {
     setErrorMessage('')
@@ -149,6 +190,8 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
           setErrorMessage('The AI draft was created, but saving it to the database failed. Try refreshing, then save again from the report workspace.')
         }
       }
+
+      await loadAiUsage()
     } catch {
       const fallbackReport = generateImpactReport(campaign)
       setReport(fallbackReport)
@@ -163,6 +206,8 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
           setErrorMessage('The AI service could not complete the request. A structured draft was prepared locally, but saving it to the database failed.')
         }
       }
+
+      await loadAiUsage()
     } finally {
       window.clearTimeout(slowTimer)
       setSlowGeneration(false)
@@ -263,9 +308,18 @@ export default function ImpactReportGenerator({ campaign, organizationId, permis
           </p>
         </div>
         {permissions.canGenerateReports && (
-          <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
-            <Sparkles className="mr-2" size={18} /> Generate Draft
-          </Button>
+          <div className="w-full space-y-2 sm:w-auto sm:text-right">
+            <Button onClick={handleGenerate} disabled={!canGenerate || aiUsage.remaining <= 0} className="w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+              <Sparkles className="mr-2" size={18} /> Generate Draft
+            </Button>
+            <p className={`text-xs font-bold ${aiUsage.remaining <= 0 ? 'text-amber-700' : 'text-slate-500'}`}>
+              {aiUsage.loading
+                ? 'Checking today’s AI draft usage...'
+                : aiUsage.unavailable
+                  ? 'AI usage count is temporarily unavailable.'
+                  : `AI drafts today: ${aiUsage.used} of ${aiUsage.limit} used`}
+            </p>
+          </div>
         )}
       </div>
 
