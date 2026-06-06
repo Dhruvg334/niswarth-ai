@@ -12,6 +12,7 @@ import Signup from './pages/Signup.jsx'
 import WorkspaceSetup from './pages/WorkspaceSetup.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
+import { Analytics } from '@vercel/analytics/react'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           </Routes>
         </main>
         <Footer />
+        <Analytics />
       </div>
     </AuthProvider>
   )
