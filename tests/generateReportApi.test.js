@@ -2,6 +2,22 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import handler from '../api/generate-report.js'
 
+
+function createVerifiedAccess(overrides = {}) {
+  return {
+    ok: true,
+    user: { id: 'user-1', email: 'tester@example.com' },
+    membership: { id: 'member-1', role: 'admin' },
+    supabase: {
+      rpc: async () => ({
+        data: { allowed: true, used: 1, limit: 20, remaining: 19 },
+        error: null,
+      }),
+    },
+    ...overrides,
+  }
+}
+
 function createMockResponse() {
   return {
     statusCode: 200,
@@ -40,6 +56,49 @@ test('generate-report API returns service unavailable when Gemini key is missing
   assert.match(res.payload.error, /not configured/i)
 
   if (previousKey) process.env.GEMINI_API_KEY = previousKey
+})
+
+
+test('generate-report API fails closed when Supabase auth config is missing', async () => {
+  const previousKey = process.env.GEMINI_API_KEY
+  const previousUrl = process.env.SUPABASE_URL
+  const previousAnon = process.env.SUPABASE_ANON_KEY
+  const previousViteUrl = process.env.VITE_SUPABASE_URL
+  const previousViteAnon = process.env.VITE_SUPABASE_ANON_KEY
+
+  process.env.GEMINI_API_KEY = 'test-key'
+  delete process.env.SUPABASE_URL
+  delete process.env.SUPABASE_ANON_KEY
+  delete process.env.VITE_SUPABASE_URL
+  delete process.env.VITE_SUPABASE_ANON_KEY
+
+  const res = createMockResponse()
+  await handler({
+    method: 'POST',
+    headers: { authorization: 'Bearer test-token' },
+    body: {
+      campaign: {
+        id: 'c1',
+        title: 'Campaign',
+        organizationId: 'org-1',
+        updates: [{ update_text: 'Update' }],
+      },
+    },
+  }, res)
+
+  assert.equal(res.statusCode, 503)
+  assert.match(res.payload.error, /temporarily unavailable/i)
+
+  if (previousKey) process.env.GEMINI_API_KEY = previousKey
+  else delete process.env.GEMINI_API_KEY
+  if (previousUrl) process.env.SUPABASE_URL = previousUrl
+  else delete process.env.SUPABASE_URL
+  if (previousAnon) process.env.SUPABASE_ANON_KEY = previousAnon
+  else delete process.env.SUPABASE_ANON_KEY
+  if (previousViteUrl) process.env.VITE_SUPABASE_URL = previousViteUrl
+  else delete process.env.VITE_SUPABASE_URL
+  if (previousViteAnon) process.env.VITE_SUPABASE_ANON_KEY = previousViteAnon
+  else delete process.env.VITE_SUPABASE_ANON_KEY
 })
 
 
@@ -118,6 +177,7 @@ test('generate-report API returns structured Gemini draft when Gemini succeeds',
   const res = createMockResponse()
   await handler({
     method: 'POST',
+    __verifiedAccess: createVerifiedAccess(),
     body: {
       campaign: {
         id: 'c1',
@@ -169,6 +229,7 @@ test('generate-report API rejects invalid structured Gemini output', async () =>
   const res = createMockResponse()
   await handler({
     method: 'POST',
+    __verifiedAccess: createVerifiedAccess(),
     body: {
       campaign: {
         id: 'c1',
@@ -222,6 +283,7 @@ test('generate-report API derives confidence when Gemini returns zero confidence
   const res = createMockResponse()
   await handler({
     method: 'POST',
+    __verifiedAccess: createVerifiedAccess(),
     body: {
       campaign: {
         id: 'c1',

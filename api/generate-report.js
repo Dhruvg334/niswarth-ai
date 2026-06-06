@@ -1,31 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
 import { DEFAULT_AI_MODEL, normalizeStructuredReport, parseStructuredText } from '../src/utils/structuredReport.js'
 import { buildStructuredReportPrompt } from '../src/utils/aiReportPrompt.js'
+import { hasSupabaseServerConfig, normalizeLimit, verifyAuthenticatedRequest } from './_supabaseServer.js'
 
 const GEMINI_MODEL = DEFAULT_AI_MODEL
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 const MAX_BODY_BYTES = 60_000
 const MAX_FIELD_UPDATES = 12
 const MAX_VOLUNTEERS = 10
-const DEFAULT_DAILY_AI_LIMIT = Number(process.env.AI_DAILY_LIMIT_PER_USER || 20)
-
-function getSupabaseServerConfig() {
-  return {
-    url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-    anonKey: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
-  }
-}
-
-function getHeader(req, name) {
-  const headers = req?.headers || {}
-  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || ''
-}
-
-function getBearerToken(req) {
-  const authorization = getHeader(req, 'authorization')
-  const match = typeof authorization === 'string' ? authorization.match(/^Bearer\s+(.+)$/i) : null
-  return match?.[1] || ''
-}
+const DEFAULT_DAILY_AI_LIMIT = normalizeLimit(process.env.AI_DAILY_LIMIT_PER_USER || 20)
 
 function getApproxBodySize(req) {
   try {
@@ -72,63 +54,38 @@ function sanitizeCampaignPayload(campaign) {
   }
 }
 
-function getClientForToken(token) {
-  const { url, anonKey } = getSupabaseServerConfig()
-  if (!url || !anonKey) return null
-
-  return createClient(url, anonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  })
-}
-
 async function verifyRequestAccess(req, campaign) {
-  const { url, anonKey } = getSupabaseServerConfig()
+  if (req?.__verifiedAccess) {
+    const access = req.__verifiedAccess
+    const { data: rateLimit, error: limitError } = await access.supabase.rpc('register_ai_generation_request', {
+      p_organization_id: campaign.organizationId,
+      p_daily_limit: DEFAULT_DAILY_AI_LIMIT,
+    })
 
-  if (!url || !anonKey) {
-    console.warn('Supabase server env is not configured for /api/generate-report. Skipping auth check in this environment.')
-    return { ok: true, user: null, usage: null }
+    if (limitError) {
+      return { ok: false, status: 429, error: 'AI request limit could not be checked. Try again shortly.' }
+    }
+
+    return { ...access, usage: rateLimit || null }
   }
 
-  const token = getBearerToken(req)
-  if (!token) {
-    return { ok: false, status: 401, error: 'Sign in again before generating an AI report.' }
+  if (!hasSupabaseServerConfig()) {
+    console.error('Supabase server env is not configured for /api/generate-report. AI generation is blocked until auth verification is available.')
+    return { ok: false, status: 503, error: 'AI generation is temporarily unavailable because server auth is not configured.' }
   }
 
-  const supabase = getClientForToken(token)
-  const { data: userData, error: userError } = await supabase.auth.getUser(token)
+  const access = await verifyAuthenticatedRequest(req, {
+    organizationId: campaign.organizationId,
+  })
 
-  if (userError || !userData?.user?.id) {
-    return { ok: false, status: 401, error: 'Your session could not be verified. Sign in again and retry.' }
+  if (!access.ok) {
+    const message = access.status === 401
+      ? 'Sign in again before generating an AI report.'
+      : access.error
+    return { ...access, error: message }
   }
 
-  if (!campaign.organizationId) {
-    return { ok: false, status: 400, error: 'Workspace context is required for AI report generation.' }
-  }
-
-  const { data: membership, error: membershipError } = await supabase
-    .from('organization_members')
-    .select('id, role')
-    .eq('organization_id', campaign.organizationId)
-    .eq('user_id', userData.user.id)
-    .maybeSingle()
-
-  if (membershipError) {
-    return { ok: false, status: 403, error: 'Workspace access could not be verified.' }
-  }
-
-  if (!membership?.id) {
-    return { ok: false, status: 403, error: 'You do not have access to this workspace.' }
-  }
-
-  const { data: rateLimit, error: limitError } = await supabase.rpc('register_ai_generation_request', {
+  const { data: rateLimit, error: limitError } = await access.supabase.rpc('register_ai_generation_request', {
     p_organization_id: campaign.organizationId,
     p_daily_limit: DEFAULT_DAILY_AI_LIMIT,
   })
@@ -141,12 +98,12 @@ async function verifyRequestAccess(req, campaign) {
     return {
       ok: false,
       status: 429,
-      error: `Daily AI draft limit reached for this account. Try again tomorrow or use the saved drafts already created today.`,
+      error: 'Daily AI draft limit reached for this account. Try again tomorrow or use the saved drafts already created today.',
       usage: rateLimit,
     }
   }
 
-  return { ok: true, user: userData.user, membership, usage: rateLimit || null }
+  return { ok: true, user: access.user, membership: access.membership, usage: rateLimit || null }
 }
 
 async function requestGeminiReport({ apiKey, prompt, maxOutputTokens = 3200 }) {
